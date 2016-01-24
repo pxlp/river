@@ -23,12 +23,14 @@ pub struct App {
     pub animation: pixelport_animation::AnimationSubSystem,
     pub viewport: pixelport_viewport::ViewportSubSystem,
     pub tcpinterface: pixelport_tcpinterface::TCPInterfaceSubSystem,
+    pub debug_tcpinterface: pixelport_tcpinterface::TCPInterfaceSubSystem,
     pub picking: pixelport_picking::PickingSubSystem,
     pub layout: pixelport_layout::LayoutSubSystem,
     start_time: Timespec,
     prev_time: Timespec,
     time_progression: TimeProgression,
-    min_frame_ms: Option<f32>
+    min_frame_ms: Option<f32>,
+    paused: bool,
 }
 
 #[derive(PartialEq)]
@@ -40,6 +42,7 @@ pub enum TimeProgression {
 pub struct AppOptions {
     pub viewport: pixelport_viewport::ViewportSubSystemOptions,
     pub port: u16,
+    pub debug_port: u16,
     pub document: Document,
     pub root_path: PathBuf,
     pub time_progression: TimeProgression,
@@ -53,6 +56,7 @@ impl App {
         let mut animation = pixelport_animation::AnimationSubSystem::new();
         let mut viewport = pixelport_viewport::ViewportSubSystem::new(opts.root_path.clone(), &opts.viewport);
         let mut tcpinterface = pixelport_tcpinterface::TCPInterfaceSubSystem::new(opts.port);
+        let mut debug_tcpinterface = pixelport_tcpinterface::TCPInterfaceSubSystem::new(opts.debug_port);
         let mut picking = pixelport_picking::PickingSubSystem::new();
         let mut layout = pixelport_layout::LayoutSubSystem::new();
 
@@ -76,15 +80,18 @@ impl App {
             animation: animation,
             viewport: viewport,
             tcpinterface: tcpinterface,
+            debug_tcpinterface: debug_tcpinterface,
             picking: picking,
             layout: layout,
             start_time: start_time,
             prev_time: start_time,
             time_progression: opts.time_progression,
-            min_frame_ms: opts.min_frame_ms
+            min_frame_ms: opts.min_frame_ms,
+            paused: false,
         }
     }
-    pub fn update(&mut self) -> bool {
+
+    fn do_update(&mut self) -> bool {
         let curr_time = match &self.time_progression {
             &TimeProgression::Real => time::get_time(),
             &TimeProgression::Fixed { ref step_ms } => self.prev_time + Duration::milliseconds(*step_ms as i64)
@@ -92,6 +99,7 @@ impl App {
         let time = curr_time - self.start_time;
         let dtime = curr_time - self.prev_time;
         self.prev_time = curr_time;
+
         for _ in 0..100 { // At most 100 cycles before we do an update
             // A cycle is basically a subset of a frame. There might be 1 or more cycles per frame.
             let cycle_changes = self.document.close_cycle();
@@ -121,5 +129,26 @@ impl App {
             }
         }
         return true;
+    }
+
+    pub fn update(&mut self) -> bool {
+        match self.debug_tcpinterface.on_debug() {
+            Some(0) => { self.paused = true },
+            Some(1) => { self.paused = false },
+            Some(2) => {
+                if self.paused {
+                    self.do_update();
+                }
+            },
+            _ => {}
+        }
+
+        println!("is paused: {:?}", self.paused);
+
+        if !self.paused {
+            self.do_update()
+        } else {
+            true
+        }
     }
 }

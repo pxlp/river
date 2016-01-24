@@ -1,0 +1,11 @@
+[package]
+name = "pixelport_document"
+version = "0.1.0"
+authors = ["Fredrik Noren <fredrik.jw.noren@gmail.com>"]
+
+[dependencies]
+peg = "0.3"
+xml-rs = "0.2"
+cgmath = "0.5"
+regex = "0.1"
+log = "0.3"

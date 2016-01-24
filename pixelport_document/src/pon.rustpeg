@@ -1,0 +1,130 @@
+use pon::*;
+use selector::*;
+use entity_match::*;
+use std::collections::HashMap;
+
+#[pub]
+body -> Pon
+  = sep* n:node sep* { n }
+
+node -> Pon
+  = number / string / boolean / object / array / nil / transform / dependency_reference / reference_pon / selector_pon
+
+transform -> Pon
+  = function_name:identifier sep* arg:node sep* {
+    Pon::PonCall(Box::new(PonCall {
+      function_name: function_name.to_string(),
+      arg: arg
+    }))
+  }
+
+dependency_reference -> Pon
+  = "@" selector:selector sep* "." sep* property_name:identifier {
+    Pon::DependencyReference(NamedPropRef {
+      selector: selector,
+      property_key: property_name.to_string(),
+    }, None)
+  }
+
+reference_pon -> Pon
+  = reference:reference { Pon::Reference(reference) }
+
+#[pub]
+reference -> NamedPropRef
+  = "" selector:selector sep* "." sep* property_name:identifier {
+    NamedPropRef {
+      selector: selector,
+      property_key: property_name.to_string(),
+    }
+  }
+
+selector_pon -> Pon
+  = "" selector:selector {
+    Pon::Selector(selector)
+  }
+
+selector_root -> Selector
+  = "this" sep* { Selector::this() }
+  / "root" sep* { Selector::root() }
+  / "parent" sep* { Selector::this_parent() }
+  / name:identifier sep* { Selector::root_search(name) }
+  / id:entity_id sep* { Selector::id(id) }
+
+selector_path -> SelectorPath
+  = "/" sep* ematch:entity_match sep* { SelectorPath::Children(ematch) }
+  / ":!" sep* ematch:entity_match sep* { SelectorPath::SearchInverse(ematch) }
+  / ":" sep* ematch:entity_match sep* { SelectorPath::Search(ematch) }
+  / "|parent|" sep* { SelectorPath::Parent }
+  / "|prev-sibling|" sep* { SelectorPath::PrevSibling }
+  / "|next-sibling|" sep* { SelectorPath::NextSibling }
+
+#[pub]
+selector -> Selector
+  = selector:selector_root sep* path:(selector_path)* {
+    let mut selector = selector;
+    selector.path.push_all(&path);
+    selector
+  }
+
+entity_match -> EntityMatch
+  = sep* "*" sep* {
+    EntityMatch::Any
+  }
+  / sep* type_name:identifier sep* {
+    EntityMatch::TypeName(type_name)
+  }
+  / sep* "[" sep* "name" sep* "=" sep* name:identifier sep* "]" sep* {
+    EntityMatch::Name(name)
+  }
+  / sep* "[" sep* prop:identifier sep* "=" sep* val:node sep* "]" sep* {
+    EntityMatch::PropertyValue { property: prop, value: Box::new(val) }
+  }
+  / sep* "[" sep* prop:identifier sep* "]" sep* {
+    EntityMatch::PropertyExists(prop)
+  }
+
+array -> Pon
+  = "[" sep* nodes:array_item ** "," sep* ","? sep* "]" {
+    Pon::Array(nodes)
+  }
+
+array_item -> Pon
+  = sep* v:node sep* { v }
+
+object -> Pon
+  = "{" sep* kvs:keyval ** "," sep* ","? sep* "}" {
+    let mut rv = HashMap::new();
+    for &(ref k, ref v) in kvs.iter() {
+      rv.insert(k.clone(), v.clone());
+    };
+    Pon::Object(rv)
+  }
+
+keyval -> (String, Pon)
+  = sep* k:identifier sep* ":" sep* v:node sep* { (k, v) }
+
+identifier -> String
+  = [a-zA-Z_][a-zA-Z_0-9]* { match_str.to_string() }
+
+number -> Pon
+  = [-]?[0-9]+[.][0-9]+ { Pon::Number(match_str.parse().unwrap()) }
+  / [-]?[0-9]+ { Pon::Number(match_str.parse().unwrap()) }
+
+entity_id -> u64
+  = "#" id:([0-9]+ { match_str.parse().unwrap() }) { id }
+
+nil -> Pon
+  = "(" sep* ")" { Pon::Nil }
+
+string -> Pon
+  = "'" s:char* "'" { Pon::String(s.iter().cloned().collect::<String>()) }
+
+char -> char
+  = [^\\'] { match_str.chars().next().unwrap() }
+  / [\\]. { match_str.chars().nth(1).unwrap() }
+
+boolean -> Pon
+  = "true" { Pon::Boolean(true) }
+  / "false" { Pon::Boolean(false) }
+
+sep = [ \t\r\n]

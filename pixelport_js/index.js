@@ -7,7 +7,8 @@ var byline = require('byline');
 var EventEmitter = require('events');
 var util = require('util');
 var debug = require('debug')('pixelport');
-var debug_actions = require('debug')('pixelport:actions');
+var debug_request = require('debug')('pixelport:request');
+var debug_response = require('debug')('pixelport:response');
 var debug_window_stdout = require('debug')('pixelport:window:stdout');
 var debug_window_stderr = require('debug')('pixelport:window:stderr');
 
@@ -37,13 +38,13 @@ class Pixelport extends EventEmitter {
           request: message
         }
       };
+      debug_request("id=%d, %o", requestId, message);
       this.pending[requestId] = { resolve: resolve, reject: reject };
       this.client.write(JSON.stringify(cmd) + '\r\n');
     });
   }
 
   setProperties(entitySelector, properties) {
-    debug_actions('setProperties for %s: %o', entitySelector, properties);
     Object.keys(properties).forEach(function(key) {
       properties[key] = '' + properties[key]; // Make sure properties are strings
     });
@@ -56,7 +57,6 @@ class Pixelport extends EventEmitter {
   }
 
   appendEntity(parentSelector, typeName, properties) {
-    debug_actions('appendEntity parent: %s, type name: %s, properties: %o', parentSelector, typeName, properties);
     properties = properties || {};
     Object.keys(properties).forEach(function(key) {
       properties[key] = '' + properties[key]; // Make sure properties are strings
@@ -74,7 +74,6 @@ class Pixelport extends EventEmitter {
 
   subDocStreamCreate(opts) {
     opts.id = opts.id || ('subdocstream-' + this.subdocStreamIdCounter++);
-    debug_actions('subDocStreamCreate %o', opts);
     var subDocStream = new SubDocStream(this, opts.id);
     this.subDocStreams[opts.id] = subDocStream;
     this._request({
@@ -89,7 +88,6 @@ class Pixelport extends EventEmitter {
   }
 
   subDocStreamDestroy(id) {
-    debug_actions('subDocStreamDestroy id: %s', id);
     return this._request({
       SubDocStreamDestroy: {
         id: id
@@ -98,7 +96,6 @@ class Pixelport extends EventEmitter {
   }
 
   screenshot() {
-    debug_actions('screenshot');
     return this._request({
       Screenshot: []
     }).then(function(resp) {
@@ -107,28 +104,24 @@ class Pixelport extends EventEmitter {
   }
 
   viewportRebuildScene() {
-    debug_actions('viewportRebuildScene');
     return this._request({
       ViewportRebuildScene: []
     });
   }
 
   viewportUpdateAllUniforms() {
-    debug_actions('viewportUpdateAllUniforms');
     return this._request({
       ViewportUpdateAllUniforms: []
     });
   }
 
   viewportDumpPipelines() {
-    debug_actions('viewportDumpPipelines');
     return this._request({
       ViewportDumpPipelines: []
     });
   }
 
   viewportDumpResources() {
-    debug_actions('viewportDumpResources');
     return this._request({
       ViewportDumpResources: []
     });
@@ -136,7 +129,6 @@ class Pixelport extends EventEmitter {
 
 
   entityRenderersBounding(entitySelector) {
-    debug_actions('entityRenderersBounding');
     return this._request({
       EntityRenderersBounding: {
         entity_selector: entitySelector
@@ -147,7 +139,6 @@ class Pixelport extends EventEmitter {
   }
 
   visualizeEntityRenderersBounding(entitySelector) {
-    debug_actions('entityRenderersBounding');
     return this._request({
       VisualizeEntityRenderersBounding: {
         entity_selector: entitySelector
@@ -179,10 +170,13 @@ class Pixelport extends EventEmitter {
       var pending = this.pending[message.Response.request_id];
       if (pending) {
         delete this.pending[message.Response.request_id];
-        if (message.Response.response.Ok)
+        if (message.Response.response.Ok) {
+          debug_response("id=%d, OK %o", message.Response.request_id, message.Response.response.Ok.data);
           pending.resolve(message.Response.response.Ok.data);
-        else
+        } else {
+          debug_response("id=%d, FAIL %o", message.Response.request_id, message.Response.response.Fail.error);
           pending.reject(message.Response.response.Fail.error);
+        }
       }
     } else if (message.SubDocStreamCycle) {
       let cycle = message.SubDocStreamCycle;

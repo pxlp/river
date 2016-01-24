@@ -26,7 +26,6 @@ Usage:
 Options:
   -h --help              Show this screen.
   --port=<pt>            TCP port to expose [default: 8081].
-  --debug-port=<pt>      TCP debug port to expose [default: 8082].
   --multisampling=<ms>   Multisampling [default: 8].
   --fullscreen           Fullscreen mode.
   --vsync                Enable vsync.
@@ -41,7 +40,6 @@ Options:
 pub struct Args {
     arg_document: Option<String>,
     flag_port: u16,
-    flag_debug_port: u16,
     flag_multisampling: u16,
     flag_fullscreen: bool,
     flag_vsync: bool,
@@ -81,7 +79,6 @@ fn main() {
             }
         },
         port: args.flag_port,
-        debug_port: args.flag_debug_port,
         document: doc,
         root_path: root_path,
         time_progression: match args.flag_fixedtimestep {

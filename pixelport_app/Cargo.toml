@@ -1,0 +1,42 @@
+
+[package]
+name = "pixelport_app"
+version = "0.1.0"
+authors = ["Fredrik Noren <fredrik.jw.noren@gmail.com>"]
+
+[dependencies]
+docopt = "0.6"
+rustc-serialize = "0.3"
+log = "0.3"
+env_logger = "0.3"
+time = "0.1"
+
+[dependencies.pixelport_document]
+path = "../pixelport_document"
+
+[dependencies.pixelport_util]
+path = "../pixelport_util"
+
+[dependencies.pixelport_animation]
+path = "../pixelport_animation"
+
+[dependencies.pixelport_viewport]
+path = "../pixelport_viewport"
+
+[dependencies.pixelport_template]
+path = "../pixelport_template"
+
+[dependencies.pixelport_subdoc]
+path = "../pixelport_subdoc"
+
+[dependencies.pixelport_tcpinterface]
+path = "../pixelport_tcpinterface"
+
+[dependencies.pixelport_picking]
+path = "../pixelport_picking"
+
+[dependencies.pixelport_layout]
+path = "../pixelport_layout"
+
+[dev-dependencies]
+image = "*"

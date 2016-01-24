@@ -18,7 +18,7 @@ use pixelport_app::*;
 use docopt::Docopt;
 
 const USAGE: &'static str = "
-Pyramid
+Pixelport
 
 Usage:
   pixelport [options] [<document>]

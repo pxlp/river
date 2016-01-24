@@ -11,7 +11,7 @@ var debug_actions = require('debug')('pixelport:actions');
 var debug_window_stdout = require('debug')('pixelport:window:stdout');
 var debug_window_stderr = require('debug')('pixelport:window:stderr');
 
-class Pyramid extends EventEmitter {
+class Pixelport extends EventEmitter {
   constructor() {
     super();
     this.client = null;
@@ -249,7 +249,7 @@ class Pyramid extends EventEmitter {
       });
 
       this.process.on('close', function (code) {
-        debug('Pyramid exited with code: %s', code);
+        debug('Pixelport exited with code: %s', code);
       });
     });
 
@@ -276,7 +276,7 @@ class Pyramid extends EventEmitter {
   }
 }
 
-module.exports = Pyramid;
+module.exports = Pixelport;
 
 class SubDocStream extends EventEmitter {
   constructor(pixelport, id) {

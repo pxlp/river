@@ -106,24 +106,18 @@ class Pixelport extends EventEmitter {
   pause() {
     return this._request({
       Pause: []
-    }).then(function(resp) {
-      return resp.Pause;
     });
   }
 
   cont() {
     return this._request({
       Continue: []
-    }).then(function(resp) {
-      return resp.Continue;
     });
   }
 
   step() {
     return this._request({
       Step: []
-    }).then(function(resp) {
-      return resp.Step;
     });
   }
 

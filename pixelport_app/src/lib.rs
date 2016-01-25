@@ -28,7 +28,7 @@ pub struct App {
     start_time: Timespec,
     prev_time: Timespec,
     time_progression: TimeProgression,
-    min_frame_ms: Option<f32>
+    min_frame_ms: Option<f32>,
 }
 
 #[derive(PartialEq)]
@@ -81,9 +81,10 @@ impl App {
             start_time: start_time,
             prev_time: start_time,
             time_progression: opts.time_progression,
-            min_frame_ms: opts.min_frame_ms
+            min_frame_ms: opts.min_frame_ms,
         }
     }
+
     pub fn update(&mut self) -> bool {
         let curr_time = match &self.time_progression {
             &TimeProgression::Real => time::get_time(),
@@ -92,6 +93,7 @@ impl App {
         let time = curr_time - self.start_time;
         let dtime = curr_time - self.prev_time;
         self.prev_time = curr_time;
+
         for _ in 0..100 { // At most 100 cycles before we do an update
             // A cycle is basically a subset of a frame. There might be 1 or more cycles per frame.
             let cycle_changes = self.document.close_cycle();

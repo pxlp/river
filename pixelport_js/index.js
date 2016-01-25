@@ -103,6 +103,24 @@ class Pixelport extends EventEmitter {
     });
   }
 
+  pause() {
+    return this._request({
+      Pause: []
+    });
+  }
+
+  cont() {
+    return this._request({
+      Continue: []
+    });
+  }
+
+  step() {
+    return this._request({
+      Step: []
+    });
+  }
+
   viewportRebuildScene() {
     return this._request({
       ViewportRebuildScene: []

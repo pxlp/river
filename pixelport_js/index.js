@@ -244,7 +244,7 @@ class Pixelport extends EventEmitter {
     debug('Creating pixelport window with opts: %o', opts);
 
     var createPromise = new Promise((resolve, reject) => {
-      this.process = child_process.spawn(opts.pixelportAppPath, startArgs, { env: { "RUST_BACKTRACE": 1, "RUST_LOG": "info" } });
+      this.process = child_process.spawn(opts.pixelportAppPath, startArgs, { env: { "RUST_BACKTRACE": 1, "RUST_LOG": opts.log || "info" } });
 
       byline(this.process.stdout).on('data', function (line) {
         line = line.toString();

@@ -25,7 +25,7 @@ Usage:
 
 Options:
   -h --help              Show this screen.
-  --port=<pt>            TCP port to expose [default: 8081].
+  --port=<pt>            TCP port to expose [default: 4303].
   --multisampling=<ms>   Multisampling [default: 8].
   --fullscreen           Fullscreen mode.
   --vsync                Enable vsync.

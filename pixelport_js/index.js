@@ -240,7 +240,7 @@ class Pixelport extends EventEmitter {
   connectToWindow(address) {
     return new Promise((resolve, reject) => {
       address = address || {};
-      address.port = address.port || 8081;
+      address.port = address.port || 4303;
       debug('Connecting to window on address %o', address);
       this.connection = {
         address: address
@@ -270,7 +270,7 @@ class Pixelport extends EventEmitter {
 
   createWindow(opts) {
     opts = opts || {};
-    opts.port = opts.port !== undefined ? opts.port : 0;
+    opts.port = opts.port || 4304;
     opts.pixelportAppPath = opts.pixelportAppPath || process.env.PIXELPORT_APP_PATH;
     if (!opts.pixelportAppPath) {
       throw new Error(`Pixelport app path not specified. Set the environment variable

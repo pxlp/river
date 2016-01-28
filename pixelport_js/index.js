@@ -200,7 +200,7 @@ class Pixelport extends EventEmitter {
       });
     });
   }
-  
+
   waitFrames(n) {
     if (n === undefined) n = 1;
     return new Promise((resolve, reject) => {
@@ -270,15 +270,15 @@ class Pixelport extends EventEmitter {
     opts.port = opts.port || 8081;
     opts.pixelportAppPath = opts.pixelportAppPath || process.env.PYRAMID_APP_PATH || '../../pixelport_app/target/release/pixelport_app';
 
-    var startArgs = opts.startArgs = opts.startArgs || [];
-    startArgs.push('--port=' + opts.port);
-    if (opts.startPml) {
-      startArgs.push(opts.startPml);
+    var args = opts.args = opts.args || [];
+    args.push('--port=' + opts.port);
+    if (opts.document) {
+      args.push(opts.document);
     }
     debug('Creating pixelport window with opts: %o', opts);
 
     var createPromise = new Promise((resolve, reject) => {
-      this.process = child_process.spawn(opts.pixelportAppPath, startArgs, { env: { "RUST_BACKTRACE": 1, "RUST_LOG": "info" } });
+      this.process = child_process.spawn(opts.pixelportAppPath, args, { env: { "RUST_BACKTRACE": 1, "RUST_LOG": "info" } });
 
       byline(this.process.stdout).on('data', function (line) {
         line = line.toString();

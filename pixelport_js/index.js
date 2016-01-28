@@ -164,6 +164,14 @@ class Pixelport extends EventEmitter {
     });
   }
 
+  fakeWindowEvent(event) {
+    return this._request({
+      FakeWindowEvent: {
+        event: event
+      }
+    });
+  }
+
   shutdown() {
     this.process.kill();
   }
@@ -178,6 +186,32 @@ class Pixelport extends EventEmitter {
           resolve();
         }
       });
+    });
+  }
+
+  waitForPropertyChange(selector, property) {
+    return new Promise((resolve, reject) => {
+      let stream = this.subDocStreamCreate({ selector: selector, property_regex: property });
+      stream.on('cycle', (changes) => {
+        if (changes.set_properties.length > 0) {
+          stream.destroy();
+          resolve();
+        }
+      });
+    });
+  }
+  
+  waitFrames(n) {
+    if (n === undefined) n = 1;
+    return new Promise((resolve, reject) => {
+      let cb = () => {
+        n--;
+        if (n == 0) {
+          this.removeListener('frame', cb);
+          resolve();
+        }
+      };
+      this.on('frame', cb);
     });
   }
 

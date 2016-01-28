@@ -293,7 +293,7 @@ $ export PIXELPORT_APP_PATH=~/pixelport/pixelport_app/target/release/pixelport_a
     debug('Creating pixelport window with opts: %o', opts);
 
     var createPromise = new Promise((resolve, reject) => {
-      this.process = child_process.spawn(opts.pixelportAppPath, args, { env: { "RUST_BACKTRACE": 1, "RUST_LOG": "info" } });
+      this.process = child_process.spawn(opts.pixelportAppPath, args, { env: { "RUST_BACKTRACE": 1, "RUST_LOG": opts.log || "info" } });
 
       let readConfigNext = false;
       byline(this.process.stdout).on('data', function (line) {

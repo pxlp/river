@@ -270,7 +270,7 @@ class Pixelport extends EventEmitter {
 
   createWindow(opts) {
     opts = opts || {};
-    opts.port = opts.port || 4304;
+    opts.port = opts.port !== undefined ? opts.port : 4304;
     opts.pixelportAppPath = opts.pixelportAppPath || process.env.PIXELPORT_APP_PATH;
     if (!opts.pixelportAppPath) {
       throw new Error(`Pixelport app path not specified. Set the environment variable

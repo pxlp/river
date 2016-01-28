@@ -271,7 +271,12 @@ class Pixelport extends EventEmitter {
   createWindow(opts) {
     opts = opts || {};
     opts.port = opts.port !== undefined ? opts.port : 0;
-    opts.pixelportAppPath = opts.pixelportAppPath || process.env.PYRAMID_APP_PATH || '../../pixelport_app/target/release/pixelport_app';
+    opts.pixelportAppPath = opts.pixelportAppPath || process.env.PIXELPORT_APP_PATH;
+    if (!opts.pixelportAppPath) {
+      throw new Error(`Pixelport app path not specified. Set the environment variable
+PIXELPORT_APP_PATH to the full path of the pixelport app. For instance:
+$ export PIXELPORT_APP_PATH=~/pixelport/pixelport_app/target/release/pixelport_app`);
+    }
 
     var args = opts.args = opts.args || [];
     args.push('--port=' + opts.port);
@@ -316,9 +321,9 @@ class Pixelport extends EventEmitter {
   }
 
   createOrConnectToWindow(opts) {
-    if (process.env.PYRAMID_CONNECT_TO) {
+    if (process.env.PIXELPORT_CONNECT_TO) {
       return this.connectToWindow({
-        port: parseInt(process.env.PYRAMID_CONNECT_TO)
+        port: parseInt(process.env.PIXELPORT_CONNECT_TO)
       });
     } else {
       return this.createWindow(opts);

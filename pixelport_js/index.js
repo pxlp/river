@@ -242,6 +242,9 @@ class Pixelport extends EventEmitter {
       address = address || {};
       address.port = address.port || 8081;
       debug('Connecting to window on address %o', address);
+      this.connection = {
+        address: address
+      };
       this.client = net.connect(address, function() {
         debug('Connected to pixelport app!');
         resolve();
@@ -267,7 +270,7 @@ class Pixelport extends EventEmitter {
 
   createWindow(opts) {
     opts = opts || {};
-    opts.port = opts.port || 8081;
+    opts.port = opts.port !== undefined ? opts.port : 0;
     opts.pixelportAppPath = opts.pixelportAppPath || process.env.PYRAMID_APP_PATH || '../../pixelport_app/target/release/pixelport_app';
 
     var args = opts.args = opts.args || [];
@@ -280,10 +283,15 @@ class Pixelport extends EventEmitter {
     var createPromise = new Promise((resolve, reject) => {
       this.process = child_process.spawn(opts.pixelportAppPath, args, { env: { "RUST_BACKTRACE": 1, "RUST_LOG": "info" } });
 
+      let readConfigNext = false;
       byline(this.process.stdout).on('data', function (line) {
         line = line.toString();
         if (line.indexOf("## READY FOR CONNECTIONS ##") >= 0) {
-          resolve();
+          readConfigNext = true;
+        } else if (readConfigNext) {
+          readConfigNext = false;
+          let config = JSON.parse(line);
+          resolve(config);
         } else {
           debug_window_stdout(line);
         }
@@ -299,8 +307,11 @@ class Pixelport extends EventEmitter {
       });
     });
 
-    return createPromise.then(() => {
-      return this.connectToWindow({ port: opts.port });
+    return createPromise.then((config) => {
+      this.window = {
+        port: config.port
+      };
+      return this.connectToWindow({ port: config.port });
     })
   }
 

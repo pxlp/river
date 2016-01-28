@@ -103,6 +103,12 @@ class Pixelport extends EventEmitter {
     });
   }
 
+  screenshotToFile(path) {
+    return this._request({
+      ScreenshotToFile: { path: path }
+    });
+  }
+
   pause() {
     return this._request({
       Pause: []
@@ -164,6 +170,14 @@ class Pixelport extends EventEmitter {
     });
   }
 
+  fakeWindowEvent(event) {
+    return this._request({
+      FakeWindowEvent: {
+        event: event
+      }
+    });
+  }
+
   shutdown() {
     this.process.kill();
   }
@@ -178,6 +192,32 @@ class Pixelport extends EventEmitter {
           resolve();
         }
       });
+    });
+  }
+
+  waitForPropertyChange(selector, property) {
+    return new Promise((resolve, reject) => {
+      let stream = this.subDocStreamCreate({ selector: selector, property_regex: property });
+      stream.on('cycle', (changes) => {
+        if (changes.set_properties.length > 0) {
+          stream.destroy();
+          resolve();
+        }
+      });
+    });
+  }
+
+  waitFrames(n) {
+    if (n === undefined) n = 1;
+    return new Promise((resolve, reject) => {
+      let cb = () => {
+        n--;
+        if (n == 0) {
+          this.removeListener('frame', cb);
+          resolve();
+        }
+      };
+      this.on('frame', cb);
     });
   }
 
@@ -206,8 +246,11 @@ class Pixelport extends EventEmitter {
   connectToWindow(address) {
     return new Promise((resolve, reject) => {
       address = address || {};
-      address.port = address.port || 8081;
+      address.port = address.port || 4303;
       debug('Connecting to window on address %o', address);
+      this.connection = {
+        address: address
+      };
       this.client = net.connect(address, function() {
         debug('Connected to pixelport app!');
         resolve();
@@ -226,6 +269,7 @@ class Pixelport extends EventEmitter {
       });
 
       this.client.on('end', () => {
+        debug('Connection to %o ended', address);
         this.emit('closed');
       });
     });
@@ -233,23 +277,33 @@ class Pixelport extends EventEmitter {
 
   createWindow(opts) {
     opts = opts || {};
-    opts.port = opts.port || 8081;
-    opts.pixelportAppPath = opts.pixelportAppPath || process.env.PYRAMID_APP_PATH || '../../pixelport_app/target/release/pixelport_app';
+    opts.port = opts.port !== undefined ? opts.port : 4304;
+    opts.pixelportAppPath = opts.pixelportAppPath || process.env.PIXELPORT_APP_PATH;
+    if (!opts.pixelportAppPath) {
+      throw new Error(`Pixelport app path not specified. Set the environment variable
+PIXELPORT_APP_PATH to the full path of the pixelport app. For instance:
+$ export PIXELPORT_APP_PATH=~/pixelport/pixelport_app/target/release/pixelport_app`);
+    }
 
-    var startArgs = opts.startArgs = opts.startArgs || [];
-    startArgs.push('--port=' + opts.port);
-    if (opts.startPml) {
-      startArgs.push(opts.startPml);
+    var args = opts.args = opts.args || [];
+    args.push('--port=' + opts.port);
+    if (opts.document) {
+      args.push(opts.document);
     }
     debug('Creating pixelport window with opts: %o', opts);
 
     var createPromise = new Promise((resolve, reject) => {
-      this.process = child_process.spawn(opts.pixelportAppPath, startArgs, { env: { "RUST_BACKTRACE": 1, "RUST_LOG": opts.log || "info" } });
+      this.process = child_process.spawn(opts.pixelportAppPath, args, { env: { "RUST_BACKTRACE": 1, "RUST_LOG": opts.log || "info" } });
 
+      let readConfigNext = false;
       byline(this.process.stdout).on('data', function (line) {
         line = line.toString();
         if (line.indexOf("## READY FOR CONNECTIONS ##") >= 0) {
-          resolve();
+          readConfigNext = true;
+        } else if (readConfigNext) {
+          readConfigNext = false;
+          let config = JSON.parse(line);
+          resolve(config);
         } else {
           debug_window_stdout(line);
         }
@@ -265,15 +319,18 @@ class Pixelport extends EventEmitter {
       });
     });
 
-    return createPromise.then(() => {
-      return this.connectToWindow({ port: opts.port });
+    return createPromise.then((config) => {
+      this.window = {
+        port: config.port
+      };
+      return this.connectToWindow({ port: config.port });
     })
   }
 
   createOrConnectToWindow(opts) {
-    if (process.env.PYRAMID_CONNECT_TO) {
+    if (process.env.PIXELPORT_CONNECT_TO) {
       return this.connectToWindow({
-        port: parseInt(process.env.PYRAMID_CONNECT_TO)
+        port: parseInt(process.env.PIXELPORT_CONNECT_TO)
       });
     } else {
       return this.createWindow(opts);

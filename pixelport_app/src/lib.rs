@@ -65,6 +65,7 @@ impl App {
         layout.on_init(&mut opts.document);
 
         println!("## READY FOR CONNECTIONS ##");
+        println!("{{ \"port\": {} }}", tcpinterface.port());
         let start_time = match &opts.time_progression {
             &TimeProgression::Real => time::get_time(),
             &TimeProgression::Fixed { .. } => Timespec::new(0, 0)

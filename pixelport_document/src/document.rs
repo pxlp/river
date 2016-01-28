@@ -79,6 +79,10 @@ impl CycleChanges {
             entities_removed: vec![]
         }
     }
+    pub fn changed(&self) -> bool {
+        return self.entities_added.len() > 0 || self.entities_removed.len() > 0 ||
+            self.set_properties.len() > 0 || self.invalidated_properties.len() > 0;
+    }
 }
 
 pub struct Document {

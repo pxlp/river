@@ -103,6 +103,12 @@ class Pixelport extends EventEmitter {
     });
   }
 
+  screenshotToFile(path) {
+    return this._request({
+      ScreenshotToFile: { path: path }
+    });
+  }
+
   pause() {
     return this._request({
       Pause: []
@@ -263,6 +269,7 @@ class Pixelport extends EventEmitter {
       });
 
       this.client.on('end', () => {
+        debug('Connection to %o ended', address);
         this.emit('closed');
       });
     });

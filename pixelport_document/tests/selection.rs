@@ -49,3 +49,20 @@ fn test_selection_remove() {
     let change = selection.cycle(&doc, &cycle_changes);
     assert_eq!(change, SelectionChange { added: vec![], removed: vec![b] });
 }
+
+
+#[test]
+fn test_selection_add_and_set_property() {
+    let (root, a, b, c, d, e, mut doc) = test_doc();
+    doc.close_cycle();
+    let selector = Selector::from_string("root:[z=2]").unwrap();
+    let mut selection = Selection::new(selector, a);
+    let change = selection.init(&doc);
+    assert_eq!(change, SelectionChange { added: vec![], removed: vec![] });
+    let z = doc.append_entity(Some(c), "Test", None).unwrap();
+    doc.set_property(z, "z", Pon::Number(2.0));
+    let cycle_changes = doc.close_cycle();
+    println!("cc {:?}", cycle_changes);
+    let change = selection.cycle(&doc, &cycle_changes);
+    assert_eq!(change, SelectionChange { added: vec![z], removed: vec![] });
+}

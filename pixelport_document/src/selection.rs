@@ -35,6 +35,11 @@ impl Selection {
         self.reevaluate_all(document)
     }
     pub fn cycle(&mut self, document: &Document, changes: &CycleChanges) -> SelectionChange {
+        for pr in &changes.set_properties {
+            if self.selector.property_of_interest(&pr.property_key) {
+                return self.reevaluate_all(document);
+            }
+        }
         let mut sel_changes = SelectionChange {
             added: Vec::new(),
             removed: Vec::new()
@@ -48,11 +53,6 @@ impl Selection {
         for entity in &changes.entities_removed {
             if self.in_selection.remove(&entity.id) {
                 sel_changes.removed.push(entity.id);
-            }
-        }
-        for pr in &changes.set_properties {
-            if self.selector.property_of_interest(&pr.property_key) {
-                return self.reevaluate_all(document);
             }
         }
         sel_changes

@@ -229,7 +229,11 @@ class Pixelport extends EventEmitter {
       if (pending) {
         delete this.pending[message.Response.request_id];
         if (message.Response.response.Ok) {
-          debug_response("id=%d, OK %o", message.Response.request_id, message.Response.response.Ok.data);
+          if (message.Response.response.Ok.data.Screenshot) { // Screenshots are massive, hiding it from the console
+            debug_response("id=%d, OK Screenshot", message.Response.request_id);
+          } else {
+            debug_response("id=%d, OK %o", message.Response.request_id, message.Response.response.Ok.data);
+          }
           pending.resolve(message.Response.response.Ok.data);
         } else {
           debug_response("id=%d, FAIL %o", message.Response.request_id, message.Response.response.Fail.error);

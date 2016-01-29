@@ -1,6 +1,7 @@
 extern crate pixelport_app;
 extern crate pixelport_viewport;
 extern crate pixelport_document;
+extern crate pixelport_resources;
 extern crate image;
 
 use pixelport_app::*;
@@ -8,7 +9,7 @@ use pixelport_document::*;
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use pixelport_viewport::resources::*;
+use pixelport_resources::*;
 use std::fs;
 
 fn headless_document_opts(filename: &str) -> AppOptions {

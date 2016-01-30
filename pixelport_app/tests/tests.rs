@@ -34,7 +34,7 @@ fn headless_document_opts(filename: &str) -> AppOptions {
 fn setup_app(name: &str) -> App {
 	let mut app = App::new(headless_document_opts(&format!("../examples/{}.pml", name)));
 	app.update();
-    app.viewport.await_resources();
+    app.resources.await_all();
     app.update();
     app
 }

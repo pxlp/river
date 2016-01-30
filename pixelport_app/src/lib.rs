@@ -7,6 +7,7 @@ extern crate pixelport_subdoc;
 extern crate pixelport_tcpinterface;
 extern crate pixelport_picking;
 extern crate pixelport_layout;
+extern crate pixelport_resources;
 #[macro_use]
 extern crate log;
 extern crate time;
@@ -25,6 +26,7 @@ pub struct App {
     pub tcpinterface: pixelport_tcpinterface::TCPInterfaceSubSystem,
     pub picking: pixelport_picking::PickingSubSystem,
     pub layout: pixelport_layout::LayoutSubSystem,
+    pub resources: pixelport_resources::ResourceStorage,
     start_time: Timespec,
     prev_time: Timespec,
     time_progression: TimeProgression,
@@ -51,7 +53,8 @@ impl App {
         let mut subdoc = pixelport_subdoc::SubdocSubSystem::new(opts.root_path.clone());
         let mut template = pixelport_template::TemplateSubSystem::new(opts.root_path.clone());
         let mut animation = pixelport_animation::AnimationSubSystem::new();
-        let mut viewport = pixelport_viewport::ViewportSubSystem::new(opts.root_path.clone(), &opts.viewport);
+        let mut resources = pixelport_resources::ResourceStorage::new(opts.root_path.clone());
+        let mut viewport = pixelport_viewport::ViewportSubSystem::new(opts.root_path.clone(), &opts.viewport, &mut resources);
         let mut tcpinterface = pixelport_tcpinterface::TCPInterfaceSubSystem::new(opts.port);
         let mut picking = pixelport_picking::PickingSubSystem::new();
         let mut layout = pixelport_layout::LayoutSubSystem::new();
@@ -79,6 +82,7 @@ impl App {
             tcpinterface: tcpinterface,
             picking: picking,
             layout: layout,
+            resources: resources,
             start_time: start_time,
             prev_time: start_time,
             time_progression: opts.time_progression,
@@ -102,7 +106,7 @@ impl App {
             self.template.on_cycle(&mut self.document, &cycle_changes);
             self.animation.on_cycle(&mut self.document, &cycle_changes);
             self.layout.on_cycle(&mut self.document, &cycle_changes);
-            self.viewport.on_cycle(&mut self.document, &cycle_changes);
+            self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources);
             self.tcpinterface.on_cycle(&mut self.document, &cycle_changes);
             self.picking.on_cycle(&mut self.document, &cycle_changes);
             if cycle_changes.set_properties.len() == 0 && cycle_changes.entities_added.len() == 0 &&
@@ -113,9 +117,10 @@ impl App {
         self.subdoc.on_update(&mut self.document);
         self.animation.on_update(&mut self.document, time);
         self.layout.on_update(&mut self.document);
-        if self.viewport.on_update(&mut self.document, dtime) { return false; }
-        self.tcpinterface.on_update(&mut self.document, &mut self.viewport);
+        if self.viewport.on_update(&mut self.document, dtime, &mut self.resources) { return false; }
+        self.tcpinterface.on_update(&mut self.document, &mut self.viewport, &mut self.resources);
         self.picking.on_update(&mut self.document);
+        self.resources.update();
         if let Some(min_frame_ms) = self.min_frame_ms {
             let dtime = time::get_time() - self.prev_time;
             if (dtime.num_milliseconds() as f32) < min_frame_ms {

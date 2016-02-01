@@ -11,8 +11,10 @@ extern crate pixelport_resources;
 #[macro_use]
 extern crate log;
 extern crate time;
+extern crate glutin;
+extern crate mesh;
 
-use std::path::{PathBuf};
+use std::path::{PathBuf, Path};
 use time::*;
 
 use pixelport_document::*;
@@ -118,7 +120,7 @@ impl App {
         self.animation.on_update(&mut self.document, time);
         self.layout.on_update(&mut self.document);
         if self.viewport.on_update(&mut self.document, dtime, &mut self.resources) { return false; }
-        self.tcpinterface.on_update(&mut self.document, &mut self.viewport, &mut self.resources);
+        self.tcpinterface.on_update(&mut self.document, &mut TCPInterfaceEnvironment { resources: &mut self.resources, viewport: &mut self.viewport });
         self.picking.on_update(&mut self.document);
         self.resources.update();
         if let Some(min_frame_ms) = self.min_frame_ms {
@@ -129,5 +131,58 @@ impl App {
             }
         }
         return true;
+    }
+}
+
+struct TCPInterfaceEnvironment<'a> {
+    viewport: &'a mut pixelport_viewport::ViewportSubSystem,
+    resources: &'a mut pixelport_resources::ResourceStorage
+}
+
+impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnvironment<'a> {
+    fn window_events(&self) -> Vec<glutin::Event> {
+        self.viewport.window_events.iter().map(|x| x.clone()).collect()
+    }
+    fn screenshot_to_png_data(&self) -> Result<Vec<u8>, String> {
+        match self.viewport.screenshot() {
+            Ok(ts) => {
+                let mut png_data = Vec::new();
+                ts.write_png(&mut png_data);
+                Ok(png_data)
+            },
+            Err(err) => Err(format!("Failed to create screenshot: {:?}", err))
+        }
+    }
+    fn screenshot_to_file(&self, path: &str) -> Result<(), String> {
+        match self.viewport.screenshot() {
+            Ok(ts) => {
+                match ts.save(Path::new(&path)) {
+                    Ok(_) => Ok(()),
+                    Err(err) => Err(format!("Failed to save screenshot: {:?}", err))
+                }
+            },
+            Err(err) => Err(format!("Failed to create screenshot: {:?}", err))
+        }
+    }
+    fn rebuild_scene(&mut self, doc: &mut Document) {
+        self.viewport.rebuild_scene(self.resources, doc);
+    }
+    fn update_all_uniforms(&mut self, doc: &mut Document) {
+        self.viewport.update_all_uniforms(doc);
+    }
+    fn dump_pipeline(&self) {
+        self.viewport.dump_pipeline();
+    }
+    fn dump_resources(&self) {
+        self.resources.dump();
+    }
+    fn entity_renderers_bounding(&mut self, entity_id: EntityId, doc: &mut Document) -> Result<Vec<mesh::AABB3>, String> {
+        self.viewport.entity_renderers_bounding(self.resources, entity_id, doc)
+    }
+    fn set_visualize_entity_bounding(&mut self, entity_id: Option<EntityId>) {
+        self.viewport.visualize_entity_bounding = entity_id;
+    }
+    fn fake_window_event(&mut self, event: glutin::Event) {
+        self.viewport.fake_window_event(event);
     }
 }

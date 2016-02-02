@@ -14,7 +14,6 @@ use std::cmp::Eq;
 use std::cmp::Ordering;
 use std::cmp::PartialOrd;
 use cgmath::{Vector2, Vector3, Vector4, Matrix4};
-use regex::*;
 use std::any::Any;
 use std::fmt::Debug;
 use std::marker::Reflect;
@@ -150,8 +149,7 @@ pub enum Pon {
 
 impl Pon {
     pub fn from_string(string: &str) -> Result<Pon, PonParseError> {
-        let re = Regex::new(r"(?P<c>//.*)").unwrap();
-        pon_peg::body(&re.replace_all(string, ""))
+        pon_peg::body(string)
     }
     pub fn call(function_name: &str, arg: Pon) -> Pon {
         Pon::PonCall(Box::new(PonCall { function_name: function_name.to_string(), arg: arg }))

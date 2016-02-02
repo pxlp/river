@@ -7,5 +7,4 @@ authors = ["Fredrik Noren <fredrik.jw.noren@gmail.com>"]
 peg = "0.3"
 xml-rs = "0.2"
 cgmath = "0.5"
-regex = "0.1"
 log = "0.3"

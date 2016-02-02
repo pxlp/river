@@ -10,6 +10,7 @@ rustc-serialize = "0.3"
 log = "0.3"
 env_logger = "0.3"
 time = "0.1"
+glutin = "0.4.7"
 
 [dependencies.pixelport_document]
 path = "../pixelport_document"
@@ -22,6 +23,9 @@ path = "../pixelport_animation"
 
 [dependencies.pixelport_viewport]
 path = "../pixelport_viewport"
+
+[dependencies.pixelport_resources]
+path = "../pixelport_resources"
 
 [dependencies.pixelport_template]
 path = "../pixelport_template"
@@ -37,6 +41,9 @@ path = "../pixelport_picking"
 
 [dependencies.pixelport_layout]
 path = "../pixelport_layout"
+
+[dependencies.mesh]
+path = "../mesh"
 
 [dev-dependencies]
 image = "*"

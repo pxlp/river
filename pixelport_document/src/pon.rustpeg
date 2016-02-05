@@ -127,4 +127,9 @@ boolean -> Pon
   = "true" { Pon::Boolean(true) }
   / "false" { Pon::Boolean(false) }
 
-sep = [ \t\r\n]
+comment = "//" [^\n]*
+whitespace = [ \t\r\n]
+
+sep
+  = whitespace
+  / comment

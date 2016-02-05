@@ -766,7 +766,6 @@ dependencies = [
  "cgmath 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "peg 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "regex 0.1.48 (registry+https://github.com/rust-lang/crates.io-index)",
  "xml-rs 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -795,6 +794,7 @@ dependencies = [
 name = "pixelport_resources"
 version = "0.1.0"
 dependencies = [
+ "base64 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "cgmath 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "freetype-rs 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",

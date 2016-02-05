@@ -42,6 +42,12 @@ fn test_string_escaped() {
 }
 
 #[test]
+fn test_comment_in_string() {
+    let v = Pon::from_string("'not a comment: //'");
+    assert_eq!(v, Ok(Pon::String("not a comment: //".to_string())));
+}
+
+#[test]
 fn test_empty_object() {
     let v = Pon::from_string("{}");
     assert_eq!(v, Ok(Pon::Object(HashMap::new())));
@@ -182,7 +188,7 @@ fn test_multiline() {
 fn test_comment() {
     let v = Pon::from_string("
         // Ignore this
-        5.0
+        5.0 // And this
     ");
     assert_eq!(v, Ok(Pon::Number(5.0)));
 }

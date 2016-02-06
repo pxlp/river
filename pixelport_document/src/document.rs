@@ -467,7 +467,21 @@ impl Document {
                                 Ok(_) => {},
                                 Err(err) => warnings.push(format!("Failed to set property {} for entity {:?}: {:?}", attribute.name.local_name, type_name.local_name, err))
                             },
-                            Err(err) => warnings.push(format!("Error parsing property {} of entity {:?}: {} with error: {:?}", attribute.name.local_name, type_name.local_name, attribute.value, err))
+                            Err(PonParseError { line, column, expected, .. }) => {
+                                let mut pon_with_line_nrs = "".to_string();
+                                let lines: Vec<&str> = attribute.value.split("\n").collect();
+                                for i in 0..lines.len() {
+                                    pon_with_line_nrs = pon_with_line_nrs + lines[i] + "\n";
+                                    if line == i + 1 {
+                                        for _ in 1..column {
+                                            pon_with_line_nrs = pon_with_line_nrs + " ";
+                                        }
+                                        pon_with_line_nrs = pon_with_line_nrs + &format!("^ Expected: {:?}\n", expected);
+                                    }
+                                }
+                                warnings.push(format!("Parse error in {}.{}:\n{}",
+                                    type_name.local_name, attribute.name.local_name, pon_with_line_nrs))
+                            }
                         };
                     }
                     entity_stack.push(entity_id);

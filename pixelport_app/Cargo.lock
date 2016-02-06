@@ -9,6 +9,7 @@ dependencies = [
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "mesh 0.1.0",
  "pixelport_animation 0.1.0",
+ "pixelport_bounding 0.1.0",
  "pixelport_document 0.1.0",
  "pixelport_layout 0.1.0",
  "pixelport_picking 0.1.0",
@@ -760,6 +761,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "pixelport_bounding"
+version = "0.1.0"
+dependencies = [
+ "cgmath 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nalgebra 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ncollide 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pixelport_document 0.1.0",
+ "pixelport_util 0.1.0",
+]
+
+[[package]]
 name = "pixelport_document"
 version = "0.1.0"
 dependencies = [
@@ -786,6 +799,7 @@ dependencies = [
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "nalgebra 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ncollide 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pixelport_bounding 0.1.0",
  "pixelport_document 0.1.0",
  "pixelport_util 0.1.0",
 ]

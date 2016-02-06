@@ -42,6 +42,9 @@ path = "../pixelport_picking"
 [dependencies.pixelport_layout]
 path = "../pixelport_layout"
 
+[dependencies.pixelport_bounding]
+path = "../pixelport_bounding"
+
 [dependencies.mesh]
 path = "../mesh"
 

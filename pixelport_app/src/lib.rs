@@ -8,6 +8,7 @@ extern crate pixelport_tcpinterface;
 extern crate pixelport_picking;
 extern crate pixelport_layout;
 extern crate pixelport_resources;
+extern crate pixelport_bounding;
 #[macro_use]
 extern crate log;
 extern crate time;
@@ -62,6 +63,7 @@ impl App {
         let mut layout = pixelport_layout::LayoutSubSystem::new();
 
         pixelport_util::pon_util(&mut opts.document.runtime);
+        pixelport_bounding::pon_bounding(&mut opts.document.runtime);
         subdoc.on_init(&mut opts.document);
         template.on_init(&mut opts.document);
         animation.on_init(&mut opts.document);

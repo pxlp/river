@@ -8,6 +8,8 @@ extern crate pixelport_tcpinterface;
 extern crate pixelport_picking;
 extern crate pixelport_layout;
 extern crate pixelport_resources;
+extern crate pixelport_bounding;
+extern crate pixelport_culling;
 #[macro_use]
 extern crate log;
 extern crate time;
@@ -27,6 +29,7 @@ pub struct App {
     pub viewport: pixelport_viewport::ViewportSubSystem,
     pub tcpinterface: pixelport_tcpinterface::TCPInterfaceSubSystem,
     pub picking: pixelport_picking::PickingSubSystem,
+    pub culling: pixelport_culling::CullingSubSystem,
     pub layout: pixelport_layout::LayoutSubSystem,
     pub resources: pixelport_resources::ResourceStorage,
     start_time: Timespec,
@@ -59,14 +62,17 @@ impl App {
         let mut viewport = pixelport_viewport::ViewportSubSystem::new(opts.root_path.clone(), &opts.viewport, &mut resources);
         let mut tcpinterface = pixelport_tcpinterface::TCPInterfaceSubSystem::new(opts.port);
         let mut picking = pixelport_picking::PickingSubSystem::new();
+        let mut culling = pixelport_culling::CullingSubSystem::new();
         let mut layout = pixelport_layout::LayoutSubSystem::new();
 
         pixelport_util::pon_util(&mut opts.document.runtime);
+        pixelport_bounding::pon_bounding(&mut opts.document.runtime);
         subdoc.on_init(&mut opts.document);
         template.on_init(&mut opts.document);
         animation.on_init(&mut opts.document);
         viewport.on_init(&mut opts.document);
         picking.on_init(&mut opts.document);
+        culling.on_init(&mut opts.document);
         layout.on_init(&mut opts.document);
 
         println!("## READY FOR CONNECTIONS ##");
@@ -83,6 +89,7 @@ impl App {
             viewport: viewport,
             tcpinterface: tcpinterface,
             picking: picking,
+            culling: culling,
             layout: layout,
             resources: resources,
             start_time: start_time,
@@ -111,6 +118,7 @@ impl App {
             self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources);
             self.tcpinterface.on_cycle(&mut self.document, &cycle_changes);
             self.picking.on_cycle(&mut self.document, &cycle_changes);
+            self.culling.on_cycle(&mut self.document, &cycle_changes);
             if cycle_changes.set_properties.len() == 0 && cycle_changes.entities_added.len() == 0 &&
                 cycle_changes.entities_removed.len() == 0 {
                 break;
@@ -122,6 +130,7 @@ impl App {
         if self.viewport.on_update(&mut self.document, dtime, &mut self.resources) { return false; }
         self.tcpinterface.on_update(&mut self.document, &mut TCPInterfaceEnvironment { resources: &mut self.resources, viewport: &mut self.viewport });
         self.picking.on_update(&mut self.document);
+        self.culling.on_update(&mut self.document);
         self.resources.update();
         if let Some(min_frame_ms) = self.min_frame_ms {
             let dtime = time::get_time() - self.prev_time;

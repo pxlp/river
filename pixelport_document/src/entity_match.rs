@@ -9,6 +9,8 @@ pub enum EntityMatch {
     TypeName(String),
     PropertyValue { property: String, value: Box<Pon> },
     PropertyExists(String),
+    And(Box<EntityMatch>, Box<EntityMatch>),
+    Or(Box<EntityMatch>, Box<EntityMatch>)
 }
 
 impl EntityMatch {
@@ -40,6 +42,12 @@ impl EntityMatch {
             &EntityMatch::PropertyExists(ref property) => match document.has_property(entity_id, property) {
                 Ok(val) => val,
                 Err(_) => false
+            },
+            &EntityMatch::And(ref a, ref b) => {
+                a.matches(document, entity_id) && b.matches(document, entity_id)
+            },
+            &EntityMatch::Or(ref a, ref b) => {
+                a.matches(document, entity_id) || b.matches(document, entity_id)
             }
         }
     }
@@ -49,7 +57,9 @@ impl EntityMatch {
             &EntityMatch::TypeName(_) => false,
             &EntityMatch::Name(_) => property_key == "name",
             &EntityMatch::PropertyValue { ref property, .. } => property == property_key,
-            &EntityMatch::PropertyExists(ref property) => property == property_key
+            &EntityMatch::PropertyExists(ref property) => property == property_key,
+            &EntityMatch::And(ref a, ref b) => a.property_of_interest(property_key) || b.property_of_interest(property_key),
+            &EntityMatch::Or(ref a, ref b) => a.property_of_interest(property_key) || b.property_of_interest(property_key)
         }
     }
 }
@@ -62,6 +72,8 @@ impl ToString for EntityMatch {
             &EntityMatch::Name(ref name) => format!("[name={}]", name),
             &EntityMatch::PropertyValue { ref property, ref value } => format!("[{}={}]", property, value.to_string()),
             &EntityMatch::PropertyExists(ref property) => format!("[{}]", property),
+            &EntityMatch::And(ref a, ref b) => format!("[{} && {}]", a.to_string(), b.to_string()),
+            &EntityMatch::Or(ref a, ref b) => format!("[{} || {}]", a.to_string(), b.to_string())
         }
     }
 }

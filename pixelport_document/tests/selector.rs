@@ -7,12 +7,12 @@ fn test_doc() -> (EntityId, EntityId, EntityId, EntityId, EntityId, EntityId, Do
     let doc = Document::from_string(r#"
         <Root>
             <Entity name="a">
-                <Entity name="b" x="5">
+                <Entity name="b" x="5" y="1">
                     <Car name="c" />
                 </Entity>
-                <Entity name="d" />
+                <Entity name="d" y="3" />
             </Entity>
-            <Entity name="e" x="5" />
+            <Entity name="e" x="5" y="3" />
         </Entity>
     </Root>"#).unwrap();
     (
@@ -41,6 +41,30 @@ fn test_selector_matches_root_search_property() {
     assert!(selector.matches(&doc, root, b));
     assert!(!selector.matches(&doc, root, c));
     assert!(!selector.matches(&doc, root, d));
+    assert!(selector.matches(&doc, root, e));
+    assert!(selector.property_of_interest("x"));
+}
+
+#[test]
+fn test_selector_matches_root_search_property_and() {
+    let (root, a, b, c, d, e, doc) = test_doc();
+    let selector = Selector::from_string("root:[[x=5] && [y=3]]").unwrap();
+    assert!(!selector.matches(&doc, root, a));
+    assert!(!selector.matches(&doc, root, b));
+    assert!(!selector.matches(&doc, root, c));
+    assert!(!selector.matches(&doc, root, d));
+    assert!(selector.matches(&doc, root, e));
+    assert!(selector.property_of_interest("x"));
+}
+
+#[test]
+fn test_selector_matches_root_search_property_or() {
+    let (root, a, b, c, d, e, doc) = test_doc();
+    let selector = Selector::from_string("root:[[x=5] || [y=3]]").unwrap();
+    assert!(!selector.matches(&doc, root, a));
+    assert!(selector.matches(&doc, root, b));
+    assert!(!selector.matches(&doc, root, c));
+    assert!(selector.matches(&doc, root, d));
     assert!(selector.matches(&doc, root, e));
     assert!(selector.property_of_interest("x"));
 }

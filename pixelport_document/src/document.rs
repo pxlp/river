@@ -21,7 +21,7 @@ use std::mem;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum DocError {
-    PonRuntimeErr(PonRuntimeErr),
+    PonRuntimeErr { err: PonRuntimeErr, entity_type_name: String, property_key: String },
     NoSuchProperty(String),
     NoSuchEntity(EntityId),
     CantFindEntityByName(String),
@@ -30,15 +30,10 @@ pub enum DocError {
 impl ToString for DocError {
     fn to_string(&self) -> String {
         match self {
-            &DocError::PonRuntimeErr(ref err) => format!("Pon runtime error: {}", err.to_string()),
+            &DocError::PonRuntimeErr { ref err, ref entity_type_name, ref property_key } =>
+                format!("Pon runtime error in {}.{}: {}", entity_type_name, property_key, err.to_string()),
             _ => format!("{:?}", self)
         }
-    }
-}
-
-impl From<PonRuntimeErr> for DocError {
-    fn from(err: PonRuntimeErr) -> DocError {
-        DocError::PonRuntimeErr(err)
     }
 }
 
@@ -197,13 +192,17 @@ impl Document {
                 let to_type_name = unsafe {
                     ::std::intrinsics::type_name::<T>()
                 };
-                Err(PonRuntimeErr::ValueOfUnexpectedType {
-                    found_value: match self.get_property_expression(entity_id, property_key) {
-                        Ok(pon) => pon.to_string(),
-                        Err(_) => "No prop found".to_string()
+                Err(DocError::PonRuntimeErr {
+                    err: PonRuntimeErr::ValueOfUnexpectedType {
+                        found_value: match self.get_property_expression(entity_id, property_key) {
+                            Ok(pon) => pon.to_string(),
+                            Err(_) => "No prop found".to_string()
+                        },
+                        expected_type: to_type_name.to_string()
                     },
-                    expected_type: to_type_name.to_string()
-                }.into())
+                    entity_type_name: self.get_entity_type_name(entity_id).unwrap(),
+                    property_key: property_key.to_string()
+                })
             }
         }
     }
@@ -220,7 +219,11 @@ impl Document {
                         false => {
                             let new_value = match self.runtime.translate_raw(&property.expression, self) {
                                 Ok(v) => v,
-                                Err(err) => return Err(From::from(err))
+                                Err(err) => return Err(DocError::PonRuntimeErr {
+                                    err: err,
+                                    entity_type_name: entity.type_name.clone(),
+                                    property_key: property_key.to_string()
+                                })
                             };
                             let new_value_clone = new_value.clone_to_pno();
                             *property.value.borrow_mut() = Some(new_value);

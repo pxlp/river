@@ -69,6 +69,20 @@ fn test_selector_matches_root_search_property_or() {
     assert!(selector.property_of_interest("x"));
 }
 
+
+#[test]
+fn test_selector_matches_root_search_property_not_equals() {
+    let (root, a, b, c, d, e, doc) = test_doc();
+    let selector = Selector::from_string("root:[x!=5]").unwrap();
+    assert!(selector.matches(&doc, root, a));
+    assert!(!selector.matches(&doc, root, b));
+    assert!(selector.matches(&doc, root, c));
+    assert!(selector.matches(&doc, root, d));
+    assert!(!selector.matches(&doc, root, e));
+    assert!(selector.property_of_interest("x"));
+}
+
+
 #[test]
 fn test_selector_matches_root_search_inv_property() {
     let (root, a, b, c, d, e, doc) = test_doc();

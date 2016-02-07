@@ -199,6 +199,7 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
         for p in &self.viewport.pipelines {
             for r in &p.renderers {
                 stats.push(pixelport_tcpinterface::messages::RendererStats {
+                    name: r.desc.name.clone(),
                     n_renderables: r.n_renderables()
                 })
             }

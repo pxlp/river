@@ -194,4 +194,16 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
     fn fake_window_event(&mut self, event: glutin::Event) {
         self.viewport.fake_window_event(event);
     }
+    fn get_renderer_stats(&mut self) -> Vec<pixelport_tcpinterface::messages::RendererStats> {
+        let mut stats = vec![];
+        for p in &self.viewport.pipelines {
+            for r in &p.renderers {
+                stats.push(pixelport_tcpinterface::messages::RendererStats {
+                    name: r.desc.name.clone(),
+                    n_renderables: r.n_renderables()
+                })
+            }
+        }
+        stats
+    }
 }

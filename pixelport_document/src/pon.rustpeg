@@ -73,11 +73,20 @@ entity_match -> EntityMatch
   / sep* type_name:identifier sep* {
     EntityMatch::TypeName(type_name)
   }
+  / sep* "[" sep* a:entity_match sep* "&&" sep* b:entity_match sep* "]" sep* {
+    EntityMatch::And(Box::new(a), Box::new(b))
+  }
+  / sep* "[" sep* a:entity_match sep* "||" sep* b:entity_match sep* "]" sep* {
+    EntityMatch::Or(Box::new(a), Box::new(b))
+  }
   / sep* "[" sep* "name" sep* "=" sep* name:identifier sep* "]" sep* {
     EntityMatch::Name(name)
   }
+  / sep* "[" sep* prop:identifier sep* "!=" sep* val:node sep* "]" sep* {
+    EntityMatch::PropertyValueNotEquals { property: prop, value: Box::new(val) }
+  }
   / sep* "[" sep* prop:identifier sep* "=" sep* val:node sep* "]" sep* {
-    EntityMatch::PropertyValue { property: prop, value: Box::new(val) }
+    EntityMatch::PropertyValueEquals { property: prop, value: Box::new(val) }
   }
   / sep* "[" sep* prop:identifier sep* "]" sep* {
     EntityMatch::PropertyExists(prop)

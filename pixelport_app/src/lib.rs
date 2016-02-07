@@ -156,7 +156,7 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
         match self.viewport.screenshot() {
             Ok(ts) => {
                 let mut png_data = Vec::new();
-                ts.write_png(&mut png_data);
+                ts.write_png(&mut png_data, 0);
                 Ok(png_data)
             },
             Err(err) => Err(format!("Failed to create screenshot: {:?}", err))
@@ -165,7 +165,7 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
     fn screenshot_to_file(&self, path: &str) -> Result<(), String> {
         match self.viewport.screenshot() {
             Ok(ts) => {
-                match ts.save(Path::new(&path)) {
+                match ts.save_png(Path::new(&path), 0) {
                     Ok(_) => Ok(()),
                     Err(err) => Err(format!("Failed to save screenshot: {:?}", err))
                 }

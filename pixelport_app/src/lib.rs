@@ -15,6 +15,7 @@ extern crate log;
 extern crate time;
 extern crate glutin;
 extern crate mesh;
+extern crate cgmath;
 
 use std::path::{PathBuf, Path};
 use time::*;
@@ -186,8 +187,22 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
     fn dump_resources(&self) {
         self.resources.dump();
     }
-    fn entity_renderers_bounding(&mut self, entity_id: EntityId, doc: &mut Document) -> Result<Vec<mesh::AABB3>, String> {
-        self.viewport.entity_renderers_bounding(self.resources, entity_id, doc)
+    fn entity_renderers_bounding(&mut self, entity_id: EntityId, doc: &mut Document) -> Result<Vec<mesh::AABB>, String> {
+        match self.viewport.entity_renderers_bounding(self.resources, entity_id, doc) {
+            Ok(boundings) => Ok(boundings.into_iter().map(|bounding| {
+                mesh::AABB {
+                    min: cgmath::Vector3::new(
+                        self.viewport.current_window_size.0 as f32 * (bounding.min.x + 1.0) / 2.0,
+                        self.viewport.current_window_size.1 as f32 * (bounding.min.y + 1.0) / 2.0,
+                        bounding.min.z),
+                    max: cgmath::Vector3::new(
+                        self.viewport.current_window_size.0 as f32 * (bounding.max.x + 1.0) / 2.0,
+                        self.viewport.current_window_size.1 as f32 * (bounding.max.y + 1.0) / 2.0,
+                        bounding.max.z),
+                }
+            }).collect()),
+            Err(err) => Err(err)
+        }
     }
     fn set_visualize_entity_bounding(&mut self, entity_id: Option<EntityId>) {
         self.viewport.visualize_entity_bounding = entity_id;

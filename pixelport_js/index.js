@@ -237,6 +237,14 @@ class Pixelport extends EventEmitter {
     });
   }
 
+  fakeMoveMouse(position) {
+    return this.fakeWindowEvent({ MouseMoved: [position.x, position.y] });
+  }
+
+  fakeClick() {
+    return this.fakeWindowEvent({ MouseInput: { state: { Pressed: [] }, button: { Left: [] } } });
+  }
+
   _handleMessage(message) {
     if (message.Frame) {
       this.emit('frame', message.Frame);

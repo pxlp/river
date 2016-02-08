@@ -11,6 +11,7 @@ log = "0.3"
 env_logger = "0.3"
 time = "0.1"
 glutin = "0.4.7"
+cgmath = "0.5"
 
 [dependencies.pixelport_document]
 path = "../pixelport_document"

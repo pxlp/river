@@ -72,6 +72,22 @@ class Pixelport extends EventEmitter {
     });
   }
 
+  removeEntity(entitySelector) {
+    return this._request({
+      RemoveEntity: {
+        entity_selector: entitySelector
+      }
+    });
+  }
+
+  clearChildren(entitySelector) {
+    return this._request({
+      ClearChildren: {
+        entity_selector: entitySelector
+      }
+    });
+  }
+
   subDocStreamCreate(opts) {
     opts.id = opts.id || ('subdocstream-' + this.subdocStreamIdCounter++);
     var subDocStream = new SubDocStream(this, opts.id);
@@ -80,7 +96,7 @@ class Pixelport extends EventEmitter {
       SubDocStreamCreate: {
         id: opts.id,
         selector: opts.selector,
-        property_regex: opts.property_regex || '.*',
+        property_regex: opts.property_regex,
         include_invalidated: !!opts.include_invalidated
       }
     });
@@ -219,6 +235,14 @@ class Pixelport extends EventEmitter {
       };
       this.on('frame', cb);
     });
+  }
+
+  fakeMoveMouse(position) {
+    return this.fakeWindowEvent({ MouseMoved: [position.x, position.y] });
+  }
+
+  fakeClick() {
+    return this.fakeWindowEvent({ MouseInput: { state: { Pressed: [] }, button: { Left: [] } } });
   }
 
   _handleMessage(message) {

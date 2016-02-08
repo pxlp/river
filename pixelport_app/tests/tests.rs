@@ -3,6 +3,7 @@ extern crate pixelport_viewport;
 extern crate pixelport_document;
 extern crate pixelport_resources;
 extern crate image;
+extern crate glutin;
 
 use pixelport_app::*;
 use pixelport_document::*;
@@ -76,4 +77,14 @@ fn test_visualize_entity_renderer_bounding() {
     app.viewport.visualize_entity_bounding = Some(3);
     app.update();
     compare_screenshot("viz_bounding", &app);
+}
+
+
+#[test]
+fn test_picking() {
+    let mut app = setup_app("picking");
+    app.viewport.fake_window_event(glutin::Event::MouseMoved((5, 50)));
+    app.update();
+    app.update();
+    compare_screenshot("picking", &app);
 }

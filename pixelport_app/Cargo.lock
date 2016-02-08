@@ -744,7 +744,6 @@ dependencies = [
  "cgmath 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "glutin 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "mesh 0.1.0",
  "mio 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "pixelport_document 0.1.0",
  "rand 0.3.13 (registry+https://github.com/rust-lang/crates.io-index)",

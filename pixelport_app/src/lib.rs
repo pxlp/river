@@ -108,6 +108,7 @@ impl App {
         let dtime = curr_time - self.prev_time;
         self.prev_time = curr_time;
 
+        if self.viewport.pre_update(&mut self.document) { return false; }
         for _ in 0..100 { // At most 100 cycles before we do an update
             // A cycle is basically a subset of a frame. There might be 1 or more cycles per frame.
             let cycle_changes = self.document.close_cycle();
@@ -115,9 +116,9 @@ impl App {
             self.template.on_cycle(&mut self.document, &cycle_changes);
             self.animation.on_cycle(&mut self.document, &cycle_changes);
             self.layout.on_cycle(&mut self.document, &cycle_changes);
+            self.picking.on_cycle(&mut self.document, &cycle_changes);
             self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources);
             self.tcpinterface.on_cycle(&mut self.document, &cycle_changes);
-            self.picking.on_cycle(&mut self.document, &cycle_changes);
             self.culling.on_cycle(&mut self.document, &cycle_changes);
             if cycle_changes.set_properties.len() == 0 && cycle_changes.entities_added.len() == 0 &&
                 cycle_changes.entities_removed.len() == 0 {
@@ -127,9 +128,9 @@ impl App {
         self.subdoc.on_update(&mut self.document);
         self.animation.on_update(&mut self.document, time);
         self.layout.on_update(&mut self.document);
-        if self.viewport.on_update(&mut self.document, dtime, &mut self.resources) { return false; }
-        self.tcpinterface.on_update(&mut self.document, &mut TCPInterfaceEnvironment { resources: &mut self.resources, viewport: &mut self.viewport });
         self.picking.on_update(&mut self.document);
+        self.viewport.on_update(&mut self.document, dtime, &mut self.resources);
+        self.tcpinterface.on_update(&mut self.document, &mut TCPInterfaceEnvironment { resources: &mut self.resources, viewport: &mut self.viewport });
         self.culling.on_update(&mut self.document);
         self.resources.update();
         if let Some(min_frame_ms) = self.min_frame_ms {
@@ -185,8 +186,26 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
     fn dump_resources(&self) {
         self.resources.dump();
     }
-    fn entity_renderers_bounding(&mut self, entity_id: EntityId, doc: &mut Document) -> Result<Vec<mesh::AABB3>, String> {
-        self.viewport.entity_renderers_bounding(self.resources, entity_id, doc)
+    fn entity_renderers_bounding(&mut self, entity_id: EntityId, doc: &mut Document) -> Result<Vec<pixelport_tcpinterface::AABB>, String> {
+        match self.viewport.entity_renderers_bounding(self.resources, entity_id, doc) {
+            Ok(boundings) => Ok(boundings.into_iter().map(|bounding| {
+                pixelport_tcpinterface::AABB {
+                    screen_min: pixelport_tcpinterface::Vec3 {
+                        x: self.viewport.current_window_size.0 as f32 * (bounding.min.x + 1.0) / 2.0,
+                        y: self.viewport.current_window_size.1 as f32 * (bounding.min.y + 1.0) / 2.0,
+                        z: bounding.min.z
+                    },
+                    screen_max: pixelport_tcpinterface::Vec3 {
+                        x: self.viewport.current_window_size.0 as f32 * (bounding.max.x + 1.0) / 2.0,
+                        y: self.viewport.current_window_size.1 as f32 * (bounding.max.y + 1.0) / 2.0,
+                        z: bounding.max.z
+                    },
+                    viewport_min: bounding.min.into(),
+                    viewport_max: bounding.max.into(),
+                }
+            }).collect()),
+            Err(err) => Err(err)
+        }
     }
     fn set_visualize_entity_bounding(&mut self, entity_id: Option<EntityId>) {
         self.viewport.visualize_entity_bounding = entity_id;

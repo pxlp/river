@@ -72,6 +72,22 @@ class Pixelport extends EventEmitter {
     });
   }
 
+  removeEntity(entitySelector) {
+    return this._request({
+      RemoveEntity: {
+        entity_selector: entitySelector
+      }
+    });
+  }
+
+  clearChildren(entitySelector) {
+    return this._request({
+      ClearChildren: {
+        entity_selector: entitySelector
+      }
+    });
+  }
+
   subDocStreamCreate(opts) {
     opts.id = opts.id || ('subdocstream-' + this.subdocStreamIdCounter++);
     var subDocStream = new SubDocStream(this, opts.id);

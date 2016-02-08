@@ -108,6 +108,7 @@ impl App {
         let dtime = curr_time - self.prev_time;
         self.prev_time = curr_time;
 
+        if self.viewport.pre_update(&mut self.document) { return false; }
         for _ in 0..100 { // At most 100 cycles before we do an update
             // A cycle is basically a subset of a frame. There might be 1 or more cycles per frame.
             let cycle_changes = self.document.close_cycle();
@@ -115,9 +116,9 @@ impl App {
             self.template.on_cycle(&mut self.document, &cycle_changes);
             self.animation.on_cycle(&mut self.document, &cycle_changes);
             self.layout.on_cycle(&mut self.document, &cycle_changes);
+            self.picking.on_cycle(&mut self.document, &cycle_changes);
             self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources);
             self.tcpinterface.on_cycle(&mut self.document, &cycle_changes);
-            self.picking.on_cycle(&mut self.document, &cycle_changes);
             self.culling.on_cycle(&mut self.document, &cycle_changes);
             if cycle_changes.set_properties.len() == 0 && cycle_changes.entities_added.len() == 0 &&
                 cycle_changes.entities_removed.len() == 0 {
@@ -127,9 +128,9 @@ impl App {
         self.subdoc.on_update(&mut self.document);
         self.animation.on_update(&mut self.document, time);
         self.layout.on_update(&mut self.document);
-        if self.viewport.on_update(&mut self.document, dtime, &mut self.resources) { return false; }
-        self.tcpinterface.on_update(&mut self.document, &mut TCPInterfaceEnvironment { resources: &mut self.resources, viewport: &mut self.viewport });
         self.picking.on_update(&mut self.document);
+        self.viewport.on_update(&mut self.document, dtime, &mut self.resources);
+        self.tcpinterface.on_update(&mut self.document, &mut TCPInterfaceEnvironment { resources: &mut self.resources, viewport: &mut self.viewport });
         self.culling.on_update(&mut self.document);
         self.resources.update();
         if let Some(min_frame_ms) = self.min_frame_ms {

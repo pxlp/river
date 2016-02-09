@@ -45,7 +45,7 @@ pub type PropertyIter<'a> = Keys<'a, String, Property>;
 #[derive(Debug)]
 pub struct Property {
     pub expression: Pon,
-    value: RefCell<Option<Box<PonNativeObject>>>,
+    value: RefCell<Option<Box<PonNativeObject>>>
 }
 
 #[derive(Debug)]
@@ -154,7 +154,7 @@ impl Document {
     pub fn get_root(&self) -> Option<EntityId> {
         self.root.clone()
     }
-    pub fn set_property(&mut self, entity_id: EntityId, property_key: &str, mut expression: Pon) -> Result<(), DocError> {
+    pub fn set_property(&mut self, entity_id: EntityId, property_key: &str, mut expression: Pon, volatile: bool) -> Result<(), DocError> {
         try!(self.resolve_pon_dependencies(entity_id, &mut expression));
         let prop_ref = PropRef::new(entity_id, property_key);
         let mut dependencies = vec![];
@@ -181,7 +181,7 @@ impl Document {
                 }
             }
         }
-        self.invalidated_properties.on_property_set(&prop_ref, dependencies);
+        self.invalidated_properties.on_property_set(&prop_ref, dependencies, volatile);
         self.this_cycle_changes.set_properties.push(prop_ref);
         Ok(())
     }
@@ -466,7 +466,7 @@ impl Document {
                     for attribute in attributes {
                         if attribute.name.local_name == "name" { continue; }
                         match Pon::from_string(&attribute.value) {
-                            Ok(node) => match self.set_property(entity_id, &attribute.name.local_name, node) {
+                            Ok(node) => match self.set_property(entity_id, &attribute.name.local_name, node, false) {
                                 Ok(_) => {},
                                 Err(err) => warnings.push(format!("Failed to set property {} for entity {:?}: {:?}", attribute.name.local_name, type_name.local_name, err))
                             },

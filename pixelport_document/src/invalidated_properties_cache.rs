@@ -1,5 +1,6 @@
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::collections::hash_map::Entry;
 
 use document::*;
@@ -26,13 +27,15 @@ impl InvProp {
 
 #[derive(Debug)]
 pub struct InvalidatedProperties {
-    props: HashMap<PropRef, InvProp>
+    props: HashMap<PropRef, InvProp>,
+    cached_invalidated: Vec<PropRef> // Could be calculated from props each close_cycle but faster to cache
 }
 
 impl InvalidatedProperties {
     pub fn new() -> InvalidatedProperties {
         InvalidatedProperties {
-            props: HashMap::new()
+            props: HashMap::new(),
+            cached_invalidated: Vec::new()
         }
     }
     pub fn set_dependencies(&mut self, prop_ref: &PropRef, dependencies: Vec<PropRef>) {
@@ -40,7 +43,11 @@ impl InvalidatedProperties {
         // one `uninvalidate` number of times.
         let mut uninvalidate = 0;
         let old_dependencies = {
-            mem::replace(&mut self.props.entry(prop_ref.clone()).or_insert(InvProp::new()).dependencies, dependencies.clone())
+            let p = self.props.entry(prop_ref.clone()).or_insert(InvProp::new());
+            if p.dependencies == dependencies {
+                return;
+            }
+            mem::replace(&mut p.dependencies, dependencies.clone())
         };
         for d in old_dependencies {
             let p = self.props.entry(d).or_insert(InvProp::new());
@@ -72,18 +79,19 @@ impl InvalidatedProperties {
         }
     }
     pub fn close_cycle(&mut self) -> Vec<PropRef> {
-        self.props.iter().filter_map(|(k, p)| {
-            if p.invalided_by_n > 0 {
-                Some(k.clone())
-            } else {
-                None
-            }
-        }).collect()
+        self.cached_invalidated.clone()
     }
     fn change_invalidated_by_n_recursively(&mut self, prop_ref: PropRef, diff: i32) {
         let dependents = {
-            let p = self.props.entry(prop_ref).or_insert(InvProp::new());
+            let p = self.props.entry(prop_ref.clone()).or_insert(InvProp::new());
+            let was_invalidated = p.invalided_by_n > 0;
             p.invalided_by_n += diff;
+            let is_invalidated = p.invalided_by_n > 0;
+            if was_invalidated && !is_invalidated {
+                self.cached_invalidated.retain(|x| !x.eq(&prop_ref));
+            } else if !was_invalidated && is_invalidated {
+                self.cached_invalidated.push(prop_ref);
+            }
             p.dependents.clone()
         };
         for pr in dependents {
@@ -95,30 +103,27 @@ impl InvalidatedProperties {
 #[derive(Debug)]
 pub struct InvalidatedPropertiesCache {
     props: InvalidatedProperties,
-    last_changed: HashMap<PropRef, u64>,
-    cycle: u64
+    to_unset_changing: HashSet<PropRef>
 }
 impl InvalidatedPropertiesCache {
     pub fn new() -> InvalidatedPropertiesCache {
         InvalidatedPropertiesCache {
             props: InvalidatedProperties::new(),
-            last_changed: HashMap::new(),
-            cycle: 2
+            to_unset_changing: HashSet::new()
         }
     }
-    pub fn on_property_set(&mut self, prop_ref: &PropRef, dependencies: Vec<PropRef>) {
+    pub fn on_property_set(&mut self, prop_ref: &PropRef, dependencies: Vec<PropRef>, volatile: bool) {
         self.props.set_dependencies(prop_ref, dependencies);
-        self.last_changed.insert(prop_ref.clone(), self.cycle);
+        self.props.set_changing(prop_ref, true);
+        if !volatile {
+            self.to_unset_changing.insert(prop_ref.clone());
+        }
     }
     pub fn close_cycle(&mut self) -> Vec<PropRef> {
-        for (prop_ref, last_changed) in self.last_changed.iter() {
-            if *last_changed == self.cycle {
-                self.props.set_changing(prop_ref, true);
-            } else if *last_changed == self.cycle - 1 {
-                self.props.set_changing(prop_ref, false);
-            }
+        let cycle = self.props.close_cycle();
+        for pr in self.to_unset_changing.drain() {
+            self.props.set_changing(&pr, false);
         }
-        self.cycle += 1;
-        self.props.close_cycle()
+        cycle
     }
 }

@@ -66,12 +66,12 @@ fn test_property_reference_array() {
     assert_eq!(doc.get_property::<f32>(ent, "y").unwrap(), 10.0);
 }
 
-#[test]
-fn test_property_reference_bad_ref() {
-    let mut doc = Document::from_string(r#"<Entity name="tmp" x="5.0" y="@what.x" />"#).unwrap();
-    let ent = doc.get_entity_by_name("tmp").unwrap();
-    assert_eq!(doc.get_property::<f32>(ent, "y").err().unwrap(), DocError::NoSuchProperty("y".to_string()));
-}
+// #[test]
+// fn test_property_reference_bad_ref() {
+//     let mut doc = Document::from_string(r#"<Entity name="tmp" x="5.0" y="@what.x" />"#).unwrap();
+//     let ent = doc.get_entity_by_name("tmp").unwrap();
+//     assert_eq!(doc.get_property::<f32>(ent, "y").err().unwrap(), DocError::NoSuchProperty("y".to_string()));
+// }
 
 #[test]
 fn test_property_reference_parent() {

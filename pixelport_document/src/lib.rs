@@ -16,7 +16,7 @@ pub mod document;
 pub mod selector;
 pub mod selection;
 pub mod entity_match;
-mod invalidated_properties_cache;
+mod properties;
 
 pub use pon::*;
 #[macro_use]

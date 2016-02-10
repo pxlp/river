@@ -157,6 +157,8 @@ impl Properties {
     }
     pub fn close_cycle(&mut self) -> PropertiesCycleChanges {
         let mut cycle_changes = mem::replace(&mut self.cycle_changes, PropertiesCycleChanges::new());
+        cycle_changes.invalidated.sort();
+        cycle_changes.invalidated.dedup();
         for pr in &cycle_changes.invalidated {
             if let Some(property) = self.properties.get_mut(&pr) {
                 *property.cached_value.borrow_mut() = None;

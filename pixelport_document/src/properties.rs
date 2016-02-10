@@ -25,13 +25,15 @@ impl InvProp {
 
 #[derive(Debug)]
 pub struct InverseDependenciesCounter {
-    props: HashMap<PropRef, InvProp>
+    props: HashMap<PropRef, InvProp>,
+    cached_nonzero: Vec<PropRef> // Could be calculated from props but faster to keep a cached version
 }
 
 impl InverseDependenciesCounter {
     pub fn new() -> InverseDependenciesCounter {
         InverseDependenciesCounter {
-            props: HashMap::new()
+            props: HashMap::new(),
+            cached_nonzero: Vec::new()
         }
     }
     pub fn set_dependencies(&mut self, prop_ref: &PropRef, dependencies: Vec<PropRef>) {
@@ -68,14 +70,8 @@ impl InverseDependenciesCounter {
         self.set_dependencies(prop_ref, Vec::new());
         self.props.remove(prop_ref);
     }
-    pub fn get_nonzero(&self) -> Vec<PropRef> {
-        self.props.iter().filter_map(|(k, p)| {
-            if p.counter > 0 {
-                Some(k.clone())
-            } else {
-                None
-            }
-        }).collect()
+    pub fn get_nonzero(&self) -> &Vec<PropRef> {
+        &self.cached_nonzero
     }
     pub fn is_nonzero(&self, prop_ref: &PropRef) -> bool {
         match self.props.get(prop_ref) {
@@ -95,8 +91,15 @@ impl InverseDependenciesCounter {
     }
     pub fn change_counter_recursively(&mut self, prop_ref: PropRef, diff: i32) {
         let dependents = {
-            let p = self.props.entry(prop_ref).or_insert(InvProp::new());
+            let p = self.props.entry(prop_ref.clone()).or_insert(InvProp::new());
+            let was_nonzero = p.counter > 0;
             p.counter += diff;
+            let is_nonzero = p.counter > 0;
+            if !was_nonzero && is_nonzero {
+                self.cached_nonzero.push(prop_ref);
+            } else if was_nonzero && !is_nonzero {
+                self.cached_nonzero.retain(|x| !x.eq(&prop_ref));
+            }
             p.dependents.clone()
         };
         for pr in dependents {
@@ -165,7 +168,7 @@ impl Properties {
             }
         }
         let volatile_invalidated = self.inv_dep_counter.get_nonzero();
-        cycle_changes.invalidated.extend(volatile_invalidated);
+        cycle_changes.invalidated.extend(volatile_invalidated.clone());
         self.cycle += 1;
         cycle_changes
     }

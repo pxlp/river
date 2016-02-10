@@ -176,8 +176,8 @@ impl Document {
     pub fn close_cycle(&mut self) -> CycleChanges {
         let mut cycle_changes = mem::replace(&mut self.this_cycle_changes, CycleChanges::new());
         let prop_cc = self.properties.close_cycle();
-        cycle_changes.invalidated_properties = prop_cc.invalidated.into_iter().collect();
-        cycle_changes.set_properties = prop_cc.set.into_iter().collect();
+        cycle_changes.invalidated_properties = prop_cc.invalidated;
+        cycle_changes.set_properties = prop_cc.set;
         return cycle_changes;
     }
     pub fn get_property_expression(&self, entity_id: EntityId, property_key: &str) -> Result<&Pon, DocError> {

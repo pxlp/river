@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::mem;
 use std::cell::RefCell;
+use std::u64;
 
 #[derive(Debug)]
 struct InvProp {
@@ -105,10 +106,14 @@ impl InverseDependenciesCounter {
 }
 
 
+struct CachedValue {
+    value: Box<PonNativeObject>,
+    valid_until_cycle: u64
+}
 
 struct Property {
     expression: Pon,
-    cached_value: RefCell<Option<Box<PonNativeObject>>>,
+    cached_value: RefCell<Option<CachedValue>>,
     volatile: bool
 }
 impl Property {
@@ -124,18 +129,19 @@ impl Property {
 pub struct Properties {
     properties: HashMap<PropRef, Property>,
     inv_dep_counter: InverseDependenciesCounter,
-    cycle_changes: PropertiesCycleChanges
+    cycle_changes: PropertiesCycleChanges,
+    cycle: u64
 }
 
 pub struct PropertiesCycleChanges {
-    pub invalidated: HashSet<PropRef>,
-    pub set: HashSet<PropRef>,
+    pub invalidated: Vec<PropRef>,
+    pub set: Vec<PropRef>,
 }
 impl PropertiesCycleChanges {
     pub fn new() -> PropertiesCycleChanges {
         PropertiesCycleChanges {
-            invalidated: HashSet::new(),
-            set: HashSet::new()
+            invalidated: Vec::new(),
+            set: Vec::new()
         }
     }
 }
@@ -145,13 +151,20 @@ impl Properties {
         Properties {
             properties: HashMap::new(),
             inv_dep_counter: InverseDependenciesCounter::new(),
-            cycle_changes: PropertiesCycleChanges::new()
+            cycle_changes: PropertiesCycleChanges::new(),
+            cycle: 2
         }
     }
     pub fn close_cycle(&mut self) -> PropertiesCycleChanges {
         let mut cycle_changes = mem::replace(&mut self.cycle_changes, PropertiesCycleChanges::new());
+        for pr in &cycle_changes.invalidated {
+            if let Some(property) = self.properties.get_mut(&pr) {
+                *property.cached_value.borrow_mut() = None;
+            }
+        }
         let volatile_invalidated = self.inv_dep_counter.get_nonzero();
         cycle_changes.invalidated.extend(volatile_invalidated);
+        self.cycle += 1;
         cycle_changes
     }
     pub fn set_property(&mut self, prop_ref: &PropRef, expression: Pon, volatile: bool) -> Result<(), DocError> {
@@ -173,24 +186,31 @@ impl Properties {
         if !volatile {
             let mut invalidated = Vec::new();
             self.inv_dep_counter.build_dependents_recursively(prop_ref.clone(), &mut invalidated);
-            for pr in &invalidated {
-                if let Some(property) = self.properties.get_mut(&pr) {
-                    *property.cached_value.borrow_mut() = None;
-                }
-            }
-            self.cycle_changes.invalidated.insert(prop_ref.clone());
+            self.cycle_changes.invalidated.push(prop_ref.clone());
             self.cycle_changes.invalidated.extend(invalidated);
         }
-        self.cycle_changes.set.insert(prop_ref.clone());
+        self.cycle_changes.set.push(prop_ref.clone());
         Ok(())
     }
     pub fn get_property_raw(&self, prop_ref: &PropRef, document: &Document) -> Result<Box<PonNativeObject>, DocError> {
         match self.properties.get(prop_ref) {
             Some(property) => {
                 let is_volatile = self.inv_dep_counter.is_nonzero(prop_ref);
-                let cached_value = { match &*property.cached_value.borrow() { &Some(ref v) => Some(v.clone_to_pno()), &None => None } };
-                if !is_volatile && cached_value.is_some() {
-                    Ok(cached_value.unwrap())
+                let cached_value = { match &mut *property.cached_value.borrow_mut() {
+                    &mut Some(ref mut v) => {
+                        if is_volatile && self.cycle < v.valid_until_cycle {
+                            v.valid_until_cycle = self.cycle;
+                        }
+                        if v.valid_until_cycle >= self.cycle {
+                            Some(v.value.clone_to_pno())
+                        } else {
+                            None
+                        }
+                    },
+                    &mut None => None
+                } };
+                if let Some(cached_value) = cached_value {
+                    Ok(cached_value)
                 } else {
                     let new_value = match document.runtime.translate_raw(&property.expression, document) {
                         Ok(v) => v,
@@ -199,11 +219,14 @@ impl Properties {
                             prop_ref: prop_ref.clone()
                         })
                     };
-                    if !is_volatile {
-                        *property.cached_value.borrow_mut() = Some(new_value.clone_to_pno());
-                    } else {
-                        *property.cached_value.borrow_mut() = None;
-                    }
+                    *property.cached_value.borrow_mut() = Some(CachedValue {
+                        value: new_value.clone_to_pno(),
+                        valid_until_cycle: if is_volatile {
+                            self.cycle
+                        } else {
+                            u64::MAX
+                        }
+                    });
                     Ok(new_value)
                 }
             },

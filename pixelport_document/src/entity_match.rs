@@ -44,10 +44,7 @@ impl EntityMatch {
                 Ok(val) => val != value,
                 Err(_) => true
             },
-            &EntityMatch::PropertyExists(ref property) => match document.has_property(entity_id, property) {
-                Ok(val) => val,
-                Err(_) => false
-            },
+            &EntityMatch::PropertyExists(ref property) => document.has_property(entity_id, property),
             &EntityMatch::And(ref a, ref b) => {
                 a.matches(document, entity_id) && b.matches(document, entity_id)
             },

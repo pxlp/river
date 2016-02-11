@@ -1,28 +1,26 @@
 use xml;
 use pon::*;
 use pon_runtime::*;
+use properties::*;
 
 use std::fs::File;
 use std::io::BufReader;
 use std::collections::HashMap;
 use std::collections::hash_map::Keys;
-use std::collections::hash_map::Entry;
 use std::path::Path;
 use std::io::Write;
 use std::any::Any;
 use std::marker::Reflect;
-use std::cell::RefCell;
 use std::borrow::Cow;
 use std::fmt;
 
 use xml::reader::EventReader;
-use invalidated_properties_cache::*;
 use std::mem;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum DocError {
-    PonRuntimeErr { err: PonRuntimeErr, entity_type_name: String, property_key: String },
-    NoSuchProperty(String),
+    PonRuntimeErr { err: PonRuntimeErr, prop_ref: PropRef },
+    NoSuchProperty { prop_ref: PropRef },
     NoSuchEntity(EntityId),
     CantFindEntityByName(String),
     InvalidParent
@@ -30,8 +28,8 @@ pub enum DocError {
 impl ToString for DocError {
     fn to_string(&self) -> String {
         match self {
-            &DocError::PonRuntimeErr { ref err, ref entity_type_name, ref property_key } =>
-                format!("Pon runtime error in {}.{}: {}", entity_type_name, property_key, err.to_string()),
+            &DocError::PonRuntimeErr { ref err, ref prop_ref } =>
+                format!("Pon runtime error in {}.{}: {}", prop_ref.entity_id, prop_ref.property_key, err.to_string()),
             _ => format!("{:?}", self)
         }
     }
@@ -40,19 +38,11 @@ impl ToString for DocError {
 pub type EntityId = u64;
 
 pub type EntityIter<'a> = Keys<'a, EntityId, Entity>;
-pub type PropertyIter<'a> = Keys<'a, String, Property>;
-
-#[derive(Debug)]
-pub struct Property {
-    pub expression: Pon,
-    value: RefCell<Option<Box<PonNativeObject>>>,
-}
 
 #[derive(Debug)]
 pub struct Entity {
     pub id: EntityId,
     pub type_name: String,
-    pub properties: HashMap<String, Property>,
     pub name: Option<String>,
     pub children_ids: Vec<EntityId>,
     pub parent_id: Option<EntityId>
@@ -87,7 +77,7 @@ pub struct Document {
     entity_ids_by_name: HashMap<String, EntityId>,
     pub resources: HashMap<String, Box<Any>>,
     pub runtime: PonRuntime,
-    invalidated_properties: InvalidatedPropertiesCache,
+    properties: Properties,
     this_cycle_changes: CycleChanges
 }
 
@@ -100,7 +90,7 @@ impl Document {
             entity_ids_by_name: HashMap::new(),
             resources: HashMap::new(),
             runtime: PonRuntime::new(),
-            invalidated_properties: InvalidatedPropertiesCache::new(),
+            properties: Properties::new(),
             this_cycle_changes: CycleChanges::new(),
         }
     }
@@ -118,7 +108,6 @@ impl Document {
         let entity = Entity {
             id: id.clone(),
             type_name: type_name.to_string(),
-            properties: HashMap::new(),
             name: name,
             parent_id: parent_id,
             children_ids: vec![]
@@ -154,36 +143,9 @@ impl Document {
     pub fn get_root(&self) -> Option<EntityId> {
         self.root.clone()
     }
-    pub fn set_property(&mut self, entity_id: EntityId, property_key: &str, mut expression: Pon) -> Result<(), DocError> {
+    pub fn set_property(&mut self, entity_id: EntityId, property_key: &str, mut expression: Pon, volatile: bool) -> Result<(), DocError> {
         try!(self.resolve_pon_dependencies(entity_id, &mut expression));
-        let prop_ref = PropRef::new(entity_id, property_key);
-        let mut dependencies = vec![];
-        expression.build_dependencies_array(&mut dependencies);
-        {
-            let mut ent_mut = match self.entities.get_mut(&entity_id) {
-                Some(ent) => ent,
-                None => return Err(DocError::NoSuchEntity(entity_id))
-            };
-            match ent_mut.properties.entry(property_key.to_string()) {
-                Entry::Occupied(o) => {
-                    let o = o.into_mut();
-                    if o.expression == expression {
-                        return Ok(()); // Early exit so that we don't clear the cache, invalidate it and add it to set properties
-                    }
-                    o.expression = expression;
-                    *o.value.borrow_mut() = None;
-                },
-                Entry::Vacant(v) => {
-                    v.insert(Property {
-                        expression: expression,
-                        value: RefCell::new(None)
-                    });
-                }
-            }
-        }
-        self.invalidated_properties.on_property_set(&prop_ref, dependencies);
-        self.this_cycle_changes.set_properties.push(prop_ref);
-        Ok(())
+        self.properties.set_property(&PropRef::new(entity_id, property_key), expression, volatile)
     }
     pub fn get_property<T: Clone + Reflect + 'static>(&self, entity_id: EntityId, property_key: &str) -> Result<T, DocError> {
         match try!(self.get_property_raw(entity_id, property_key)).as_any().downcast_ref::<T>() {
@@ -200,96 +162,30 @@ impl Document {
                         },
                         expected_type: to_type_name.to_string()
                     },
-                    entity_type_name: self.get_entity_type_name(entity_id).unwrap(),
-                    property_key: property_key.to_string()
+                    prop_ref: PropRef::new(entity_id, property_key)
                 })
             }
         }
     }
     pub fn get_property_raw(&self, entity_id: EntityId, property_key: &str) -> Result<Box<PonNativeObject>, DocError> {
-        match self.entities.get(&entity_id) {
-            Some(entity) => match entity.properties.get(property_key) {
-                Some(property) => {
-                    let has_value = { property.value.borrow().is_some() };
-                    match has_value {
-                        true => match &*property.value.borrow() {
-                            &Some(ref value) => Ok(value.clone_to_pno()),
-                            _ => unreachable!()
-                        },
-                        false => {
-                            let new_value = match self.runtime.translate_raw(&property.expression, self) {
-                                Ok(v) => v,
-                                Err(err) => return Err(DocError::PonRuntimeErr {
-                                    err: err,
-                                    entity_type_name: entity.type_name.clone(),
-                                    property_key: property_key.to_string()
-                                })
-                            };
-                            let new_value_clone = new_value.clone_to_pno();
-                            *property.value.borrow_mut() = Some(new_value);
-                            Ok(new_value_clone)
-                        }
-                    }
-                },
-                None => Err(DocError::NoSuchProperty(property_key.to_string()))
-            },
-            None => Err(DocError::NoSuchEntity(entity_id))
-        }
+        self.properties.get_property_raw(&PropRef::new(entity_id, property_key), self)
     }
-    pub fn has_property(&self, entity_id: EntityId, name: &str) -> Result<bool, DocError> {
-        match self.entities.get(&entity_id) {
-            Some(entity) => match entity.properties.get(name) {
-                Some(prop) => Ok(true),
-                None => Ok(false)
-            },
-            None => Err(DocError::NoSuchEntity(entity_id))
-        }
+    pub fn has_property(&self, entity_id: EntityId, property_key: &str) -> bool {
+        self.properties.has_property(&PropRef::new(entity_id, property_key))
     }
     pub fn close_cycle(&mut self) -> CycleChanges {
         let mut cycle_changes = mem::replace(&mut self.this_cycle_changes, CycleChanges::new());
-        cycle_changes.invalidated_properties = self.invalidated_properties.close_cycle();
-        cycle_changes.invalidated_properties.retain(|prop_ref| {
-            // Clear out caches and only keep props that are actually around still
-            match self.clear_property_cache(prop_ref.entity_id, &prop_ref.property_key) {
-                Ok(_) => true,
-                Err(_) => false
-            }
-        });
+        let prop_cc = self.properties.close_cycle();
+        cycle_changes.invalidated_properties = prop_cc.invalidated;
+        cycle_changes.set_properties = prop_cc.set;
         return cycle_changes;
     }
-    pub fn clear_all_property_caches(&self) {
-        for (_, entity) in self.entities.iter() {
-            for (_, property) in entity.properties.iter() {
-                *property.value.borrow_mut() = None;
-            }
-        }
-    }
-    fn clear_property_cache(&self, entity_id: EntityId, property_key: &str) -> Result<(), DocError> {
-        match self.entities.get(&entity_id) {
-            Some(entity) => match entity.properties.get(property_key) {
-                Some(property) => {
-                    *property.value.borrow_mut() = None;
-                    Ok(())
-                },
-                None => Err(DocError::NoSuchProperty(property_key.to_string()))
-            },
-            None => Err(DocError::NoSuchEntity(entity_id))
-        }
-    }
     pub fn get_property_expression(&self, entity_id: EntityId, property_key: &str) -> Result<&Pon, DocError> {
-        match self.entities.get(&entity_id) {
-            Some(entity) => match entity.properties.get(property_key) {
-                Some(property) => Ok(&property.expression),
-                None => Err(DocError::NoSuchProperty(property_key.to_string()))
-            },
-            None => Err(DocError::NoSuchEntity(entity_id))
-        }
+        self.properties.get_property_expression(&PropRef::new(entity_id, property_key))
     }
     pub fn get_properties(&self, entity_id: EntityId) -> Result<Vec<PropRef>, DocError> {
-        match self.entities.get(&entity_id) {
-            Some(entity) => Ok(entity.properties.keys().map(|key| PropRef { entity_id: entity_id.clone(), property_key: key.clone() }).collect()),
-            None => Err(DocError::NoSuchEntity(entity_id))
-        }
+        if !self.entities.contains_key(&entity_id) { return Err(DocError::NoSuchEntity(entity_id)); }
+        Ok(self.properties.get_properties_for_entity(entity_id))
     }
     pub fn get_children(&self, entity_id: EntityId) -> Result<&Vec<EntityId>, DocError> {
         match self.entities.get(&entity_id) {
@@ -356,6 +252,7 @@ impl Document {
     pub fn remove_entity(&mut self, entity_id: EntityId) -> Result<(), DocError> {
         match self.entities.remove(&entity_id) {
             Some(entity) => {
+                self.properties.remove_properties_for_entity(entity_id);
                 if let &Some(ref parent_id) = &entity.parent_id {
                     match self.entities.get_mut(parent_id) {
                         Some(parent) => parent.children_ids.retain(|id| *id != entity_id),
@@ -466,7 +363,7 @@ impl Document {
                     for attribute in attributes {
                         if attribute.name.local_name == "name" { continue; }
                         match Pon::from_string(&attribute.value) {
-                            Ok(node) => match self.set_property(entity_id, &attribute.name.local_name, node) {
+                            Ok(node) => match self.set_property(entity_id, &attribute.name.local_name, node, false) {
                                 Ok(_) => {},
                                 Err(err) => warnings.push(format!("Failed to set property {} for entity {:?}: {:?}", attribute.name.local_name, type_name.local_name, err))
                             },
@@ -504,10 +401,11 @@ impl Document {
     fn entity_to_xml<T: Write>(&self, entity_id: EntityId, writer: &mut xml::writer::EventWriter<T>) {
         let entity = self.entities.get(&entity_id).unwrap();
         let type_name = xml::name::Name::local(&entity.type_name);
-        let mut attrs: Vec<xml::attribute::OwnedAttribute> = entity.properties.iter().filter_map(|(name, prop)| {
+        let props = self.properties.get_properties_for_entity(entity_id);
+        let mut attrs: Vec<xml::attribute::OwnedAttribute> = props.iter().filter_map(|prop_ref| {
             Some(xml::attribute::OwnedAttribute {
-                name: xml::name::OwnedName::local(name.to_string()),
-                value: prop.expression.to_string()
+                name: xml::name::OwnedName::local(prop_ref.property_key.to_string()),
+                value: self.properties.get_property_expression(prop_ref).unwrap().to_string()
             })
         }).collect();
         if let &Some(ref name) = &entity.name {

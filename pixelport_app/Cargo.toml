@@ -1,6 +1,6 @@
 
 [package]
-name = "pixelport_app"
+name = "pixelport"
 version = "0.1.0"
 authors = ["Fredrik Noren <fredrik.jw.noren@gmail.com>"]
 

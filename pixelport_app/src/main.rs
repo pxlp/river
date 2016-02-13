@@ -1,5 +1,5 @@
 extern crate pixelport_document;
-extern crate pixelport_app;
+extern crate pixelport;
 extern crate pixelport_viewport;
 extern crate rustc_serialize;
 extern crate docopt;
@@ -13,7 +13,7 @@ use std::io::prelude::*;
 use std::env;
 
 use pixelport_document::*;
-use pixelport_app::*;
+use pixelport::*;
 
 use docopt::Docopt;
 

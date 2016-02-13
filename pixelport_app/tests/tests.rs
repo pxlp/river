@@ -1,11 +1,11 @@
-extern crate pixelport_app;
+extern crate pixelport;
 extern crate pixelport_viewport;
 extern crate pixelport_document;
 extern crate pixelport_resources;
 extern crate image;
 extern crate glutin;
 
-use pixelport_app::*;
+use pixelport::*;
 use pixelport_document::*;
 
 use std::path::{Path, PathBuf};

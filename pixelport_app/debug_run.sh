@@ -2,4 +2,4 @@ set -e
 echo "################################## build ###################################################################"
 cargo build
 echo "################################### run ####################################################################"
-RUST_BACKTRACE=1 RUST_LOG=info target/debug/pixelport_app "$@"
+RUST_BACKTRACE=1 RUST_LOG=info target/debug/pixelport "$@"

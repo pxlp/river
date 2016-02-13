@@ -177,6 +177,9 @@ impl Properties {
         expression.build_dependencies_array(&mut dependencies);
         let was_volatile = {
             let property = self.properties.entry(prop_ref.clone()).or_insert(Property::new());
+            if property.expression == expression {
+                return Ok(()); // Early exit so that we don't clear the cache, invalidate it and add it to set properties
+            }
             property.expression = expression;
             let was_volatile = property.volatile;
             property.volatile = volatile;

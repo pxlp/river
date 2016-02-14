@@ -15,12 +15,17 @@ extern crate log;
 extern crate time;
 extern crate glutin;
 extern crate mesh;
+extern crate libc;
 
+use std::mem;
+use std::ffi::CStr;
+use libc::c_char;
 use std::path::{PathBuf, Path};
 use time::*;
 
 use pixelport_document::*;
 
+#[repr(C)]
 pub struct App {
     pub document: Document,
     pub subdoc: pixelport_subdoc::SubdocSubSystem,
@@ -225,4 +230,57 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
         }
         stats
     }
+}
+
+#[no_mangle]
+pub extern "C" fn pixelport_new() -> *mut App {
+    let app = Box::new(App::new(AppOptions {
+        viewport: pixelport_viewport::ViewportSubSystemOptions {
+            fullscreen: false,
+            multisampling: 0,
+            vsync: false,
+            headless: false,
+            window_size: None
+        },
+        port: 4303,
+        document: Document::new_with_root(),
+        root_path: Path::new(".").to_path_buf(),
+        time_progression: TimeProgression::Real,
+        min_frame_ms: None
+    }));
+    unsafe { mem::transmute(app) }
+}
+
+#[no_mangle]
+pub extern "C" fn pixelport_update(app: &mut App) -> bool { app.update() }
+
+#[no_mangle]
+pub extern "C" fn pixelport_get_root(app: &mut App) -> i64 {
+    match app.document.get_root() {
+        Some(id) => id as i64,
+        None => -1
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn pixelport_append_entity(app: &mut App, parent_id: i64,
+    type_name: *mut c_char) -> i64 {
+    let parent_id: Option<EntityId> = if parent_id >= 0 { Some(parent_id as u64) } else { None };
+    let type_name = unsafe { CStr::from_ptr(type_name).to_string_lossy().into_owned() };
+    match app.document.append_entity(parent_id, &type_name, None) {
+        Ok(id) => id as i64,
+        Err(err) => {
+            println!("pixelport_append_entity failed with: {:?}", err);
+            -1
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn pixelport_set_property(app: &mut App, entity_id: u64,
+    property_key: *mut c_char, expression: *mut c_char) {
+    let property_key = unsafe { CStr::from_ptr(property_key).to_string_lossy().into_owned() };
+    let expression = unsafe { CStr::from_ptr(expression).to_string_lossy().into_owned() };
+    let expression = Pon::from_string(&expression).unwrap();
+    app.document.set_property(entity_id, &property_key, expression, false);
 }

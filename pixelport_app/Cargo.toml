@@ -4,6 +4,10 @@ name = "pixelport"
 version = "0.1.0"
 authors = ["Fredrik Noren <fredrik.jw.noren@gmail.com>"]
 
+[lib]
+name = "pixelport"
+crate-type = ["rlib", "staticlib"]
+
 [dependencies]
 docopt = "0.6"
 rustc-serialize = "0.3"
@@ -11,6 +15,7 @@ log = "0.3"
 env_logger = "0.3"
 time = "0.1"
 glutin = "0.4.7"
+libc = "0.2"
 
 [dependencies.pixelport_document]
 path = "../pixelport_document"

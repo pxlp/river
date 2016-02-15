@@ -59,7 +59,7 @@ fn test_selection_add_and_set_property() {
     let mut selection = Selection::new(selector, a);
     let change = selection.init(&doc);
     assert_eq!(change, SelectionChange { added: vec![], removed: vec![] });
-    let z = doc.append_entity(Some(c), "Test", None).unwrap();
+    let z = doc.append_entity(None, Some(c), "Test", None).unwrap();
     doc.set_property(z, "z", Pon::Number(2.0), false);
     let cycle_changes = doc.close_cycle();
     println!("cc {:?}", cycle_changes);

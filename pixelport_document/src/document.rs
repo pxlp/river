@@ -70,6 +70,11 @@ impl CycleChanges {
     }
 }
 
+pub struct EntityIdsReservation {
+    pub min: EntityId,
+    pub max: EntityId
+}
+
 pub struct Document {
     id_counter: EntityId,
     root: Option<EntityId>,
@@ -96,17 +101,20 @@ impl Document {
     }
     pub fn new_with_root() -> Document {
         let mut doc = Document::new();
-        doc.append_entity(None, "Pml", None).unwrap();
+        doc.append_entity(None, None, "Pml", None).unwrap();
         doc
     }
     fn new_id(&mut self) -> EntityId {
         self.id_counter += 1;
         return self.id_counter;
     }
-    pub fn append_entity(&mut self, parent_id: Option<EntityId>, type_name: &str, name: Option<String>) -> Result<EntityId, DocError> {
-        let id = self.new_id();
+    pub fn append_entity(&mut self, entity_id: Option<EntityId>, parent_id: Option<EntityId>, type_name: &str, name: Option<String>) -> Result<EntityId, DocError> {
+        let id = match entity_id {
+            Some(id) => id,
+            None => self.new_id()
+        };
         let entity = Entity {
-            id: id.clone(),
+            id: id,
             type_name: type_name.to_string(),
             name: name,
             parent_id: parent_id,
@@ -278,6 +286,13 @@ impl Document {
         }
         Ok(())
     }
+    pub fn reserve_entity_ids(&mut self, count: u64) -> EntityIdsReservation {
+        self.id_counter += count + 1;
+        EntityIdsReservation {
+            min: self.id_counter - count,
+            max: self.id_counter
+        }
+    }
     pub fn entity_to_string(&self, entity_id: EntityId) -> Result<String, DocError> {
         let mut buff = vec![];
         {
@@ -352,7 +367,7 @@ impl Document {
                         Some(parent) => Some(*parent),
                         None => None
                     };
-                    let entity_id = match self.append_entity(parent, &type_name.local_name, entity_name) {
+                    let entity_id = match self.append_entity(None, parent, &type_name.local_name, entity_name) {
                         Ok(id) => id,
                         Err(err) => {
                             warnings.push(format!("Failed to append entity {:?}: {:?}", type_name.local_name, err));

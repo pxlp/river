@@ -158,7 +158,7 @@ fn test_invalidated_prop_one_exists_one_doesnt() {
 #[test]
 fn test_invalidated_change_twice() {
     let mut document = Document::new();
-    let ent = document.append_entity(None, "Tmp", None).unwrap();
+    let ent = document.append_entity(None, None, "Tmp", None).unwrap();
     let cycle_changes = document.close_cycle();
     assert_eq_unsorted!(cycle_changes.invalidated_properties, vec![]);
     document.set_property(ent, "x", Pon::Number(9.0), false).ok().unwrap();
@@ -174,7 +174,7 @@ fn test_invalidated_change_twice() {
 #[test]
 fn test_invalidated_change_twice_in_one_frame() {
     let mut document = Document::new();
-    let ent = document.append_entity(None, "Tmp", None).unwrap();
+    let ent = document.append_entity(None, None, "Tmp", None).unwrap();
     let cycle_changes = document.close_cycle();
     assert_eq_unsorted!(cycle_changes.invalidated_properties, vec![]);
     document.set_property(ent, "x", Pon::Number(9.0), false).ok().unwrap();
@@ -188,7 +188,7 @@ fn test_invalidated_change_twice_in_one_frame() {
 #[test]
 fn test_invalidated_change_twice_in_one_frame_deps() {
     let mut document = Document::new();
-    let ent = document.append_entity(None, "Tmp", None).unwrap();
+    let ent = document.append_entity(None, None, "Tmp", None).unwrap();
     document.set_property(ent, "y", Pon::Number(5.0), false).ok().unwrap();
     document.set_property(ent, "z", Pon::Number(6.0), false).ok().unwrap();
     let cycle_changes = document.close_cycle();
@@ -205,7 +205,7 @@ fn test_invalidated_change_twice_in_one_frame_deps() {
 #[test]
 fn test_invalidated_change_twice_deps() {
     let mut document = Document::new();
-    let ent = document.append_entity(None, "Tmp", None).unwrap();
+    let ent = document.append_entity(None, None, "Tmp", None).unwrap();
     document.set_property(ent, "y", Pon::Number(5.0), false).ok().unwrap();
     document.set_property(ent, "z", Pon::Number(6.0), false).ok().unwrap();
     let cycle_changes = document.close_cycle();

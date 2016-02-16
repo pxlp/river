@@ -56,16 +56,17 @@ class Pixelport extends EventEmitter {
     });
   }
 
-  appendEntity(parentSelector, typeName, properties) {
-    properties = properties || {};
-    Object.keys(properties).forEach(function(key) {
-      properties[key] = '' + properties[key]; // Make sure properties are strings
+  appendEntity(opts) {
+    opts.properties = opts.properties || {};
+    Object.keys(opts.properties).forEach(function(key) {
+      opts.properties[key] = '' + opts.properties[key]; // Make sure properties are strings
     });
     return this._request({
       AppendEntity: {
-        parent_selector: parentSelector,
-        type_name: typeName,
-        properties: properties
+        parent_selector: opts.parentSelector,
+        type_name: opts.typeName,
+        properties: opts.properties,
+        entity_id: opts.entityId
       }
     }).then(function(resp) {
       return resp.EntityAdded;
@@ -108,6 +109,14 @@ class Pixelport extends EventEmitter {
       SubDocStreamDestroy: {
         id: id
       }
+    });
+  }
+
+  reserveEntityIds(count) {
+    return this._request({
+      ReserveEntityIds: { count: count }
+    }).then(function(resp) {
+      return resp.EntityIdsReserved;
     });
   }
 

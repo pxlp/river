@@ -119,7 +119,7 @@ impl App {
             let cycle_changes = self.document.close_cycle();
             self.subdoc.on_cycle(&mut self.document, &cycle_changes);
             self.template.on_cycle(&mut self.document, &cycle_changes);
-            self.animation.on_cycle(&mut self.document, &cycle_changes);
+            self.animation.on_cycle(&mut self.document, &cycle_changes, time);
             self.layout.on_cycle(&mut self.document, &cycle_changes);
             self.picking.on_cycle(&mut self.document, &cycle_changes);
             self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources);

@@ -10,6 +10,7 @@ extern crate pixelport_layout;
 extern crate pixelport_resources;
 extern crate pixelport_bounding;
 extern crate pixelport_culling;
+extern crate pixelport_models;
 #[macro_use]
 extern crate log;
 extern crate time;
@@ -37,6 +38,7 @@ pub struct App {
     pub culling: pixelport_culling::CullingSubSystem,
     pub layout: pixelport_layout::LayoutSubSystem,
     pub resources: pixelport_resources::ResourceStorage,
+    pub models: pixelport_models::Models,
     start_time: Timespec,
     prev_time: Timespec,
     time_progression: TimeProgression,
@@ -69,9 +71,11 @@ impl App {
         let mut picking = pixelport_picking::PickingSubSystem::new();
         let mut culling = pixelport_culling::CullingSubSystem::new();
         let mut layout = pixelport_layout::LayoutSubSystem::new();
+        let mut models = pixelport_models::Models::new(opts.root_path.clone());
 
         pixelport_util::pon_util(&mut opts.document.runtime);
         pixelport_bounding::pon_bounding(&mut opts.document.runtime);
+        pixelport_models::pon_models(&mut opts.document.runtime);
         subdoc.on_init(&mut opts.document);
         template.on_init(&mut opts.document);
         animation.on_init(&mut opts.document);
@@ -97,6 +101,7 @@ impl App {
             culling: culling,
             layout: layout,
             resources: resources,
+            models: models,
             start_time: start_time,
             prev_time: start_time,
             time_progression: opts.time_progression,
@@ -119,7 +124,7 @@ impl App {
             let cycle_changes = self.document.close_cycle();
             self.subdoc.on_cycle(&mut self.document, &cycle_changes);
             self.template.on_cycle(&mut self.document, &cycle_changes);
-            self.animation.on_cycle(&mut self.document, &cycle_changes, time);
+            self.animation.on_cycle(&mut self.document, &cycle_changes, time, &mut self.models);
             self.layout.on_cycle(&mut self.document, &cycle_changes);
             self.picking.on_cycle(&mut self.document, &cycle_changes);
             self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources);

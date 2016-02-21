@@ -53,6 +53,9 @@ path = "../pixelport_bounding"
 [dependencies.pixelport_culling]
 path = "../pixelport_culling"
 
+[dependencies.pixelport_models]
+path = "../pixelport_models"
+
 [dependencies.mesh]
 path = "../mesh"
 

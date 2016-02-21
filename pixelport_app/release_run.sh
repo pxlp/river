@@ -2,4 +2,4 @@ set -e
 echo "################################## build ###################################################################"
 cargo build --release
 echo "################################### run ####################################################################"
-RUST_BACKTRACE=1 RUST_LOG=info target/release/pixelport "$@"
+RUST_BACKTRACE=1 RUST_LOG=warn target/release/pixelport "$@"

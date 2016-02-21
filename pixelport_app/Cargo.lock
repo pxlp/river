@@ -128,7 +128,7 @@ dependencies = [
 
 [[package]]
 name = "cgmath"
-version = "0.5.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "num 0.1.31 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -534,7 +534,7 @@ dependencies = [
 name = "mesh"
 version = "0.1.0"
 dependencies = [
- "cgmath 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -619,7 +619,7 @@ name = "pixelport_animation"
 version = "0.1.0"
 dependencies = [
  "assimp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "cgmath 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "pixelport_document 0.1.0",
  "pixelport_models 0.1.0",
@@ -630,7 +630,7 @@ dependencies = [
 name = "pixelport_bounding"
 version = "0.1.0"
 dependencies = [
- "cgmath 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "pixelport_document 0.1.0",
  "pixelport_util 0.1.0",
@@ -640,7 +640,7 @@ dependencies = [
 name = "pixelport_culling"
 version = "0.1.0"
 dependencies = [
- "cgmath 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "pixelport_bounding 0.1.0",
  "pixelport_document 0.1.0",
@@ -650,7 +650,7 @@ dependencies = [
 name = "pixelport_document"
 version = "0.1.0"
 dependencies = [
- "cgmath 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "peg 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "xml-rs 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -660,7 +660,7 @@ dependencies = [
 name = "pixelport_layout"
 version = "0.1.0"
 dependencies = [
- "cgmath 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "pixelport_document 0.1.0",
 ]
@@ -671,7 +671,7 @@ version = "0.1.0"
 dependencies = [
  "assimp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "assimp-build 0.1.0",
- "cgmath 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "mesh 0.1.0",
  "pixelport_document 0.1.0",
@@ -681,7 +681,7 @@ dependencies = [
 name = "pixelport_picking"
 version = "0.1.0"
 dependencies = [
- "cgmath 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "pixelport_bounding 0.1.0",
  "pixelport_document 0.1.0",
@@ -694,7 +694,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "cgmath 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "freetype-rs 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "freetype2 0.1.0",
  "gl 0.1.0",
@@ -715,7 +715,7 @@ name = "pixelport_subdoc"
 version = "0.1.0"
 dependencies = [
  "assimp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "cgmath 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "pixelport_document 0.1.0",
  "pixelport_models 0.1.0",
@@ -726,7 +726,7 @@ name = "pixelport_tcpinterface"
 version = "0.1.0"
 dependencies = [
  "base64 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "cgmath 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "glutin 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -751,7 +751,7 @@ dependencies = [
 name = "pixelport_util"
 version = "0.1.0"
 dependencies = [
- "cgmath 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pixelport_document 0.1.0",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -760,7 +760,7 @@ dependencies = [
 name = "pixelport_viewport"
 version = "0.1.0"
 dependencies = [
- "cgmath 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "gl 0.1.0",
  "glutin 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",

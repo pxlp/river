@@ -274,6 +274,24 @@ impl ToPon for Vec<i64> {
     }
 }
 
+impl ToPon for Vector2<f32> {
+    fn to_pon(&self) -> Pon {
+        Pon::PonCall(Box::new(PonCall {
+            function_name: "vec2".to_string(),
+            arg: Pon::Object(hashmap!(
+                "x" => Pon::Number(self.x),
+                "y" => Pon::Number(self.y)
+            ))
+        }))
+    }
+}
+
+#[test]
+fn test_vec2_to_pon() {
+    let v = Vector2::new(1.0, 2.0);
+    assert_eq!(v.to_pon(), Pon::from_string("vec2 { x: 1.0, y: 2.0 }").unwrap());
+}
+
 impl ToPon for Vector3<f32> {
     fn to_pon(&self) -> Pon {
         Pon::PonCall(Box::new(PonCall {

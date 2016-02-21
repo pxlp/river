@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha -u tdd"
   },
   "author": "",
   "license": "ISC",
@@ -12,5 +12,9 @@
     "bluebird": "^2.10.2",
     "byline": "^4.2.1",
     "debug": "^2.2.0"
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "mocha": "^2.4.5"
   }
 }

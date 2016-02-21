@@ -374,8 +374,19 @@ $ export PIXELPORT_APP_PATH=~/pixelport/pixelport_app/target/release/pixelport_a
     }
   }
 
-  static vec3ToString(v) {
+  static stringifyVec3(v) {
     return 'vec3 { x: ' + (v.x || 0.0) + ', y: ' + (v.y || 0.0) + ', z: ' + (v.z || 0) + '}';
+  }
+  static parseVec3(string) {
+    let nums = string.match(/vec3\s*\{([^}]*)\}/);
+    let vec = { x: 0, y: 0, z: 0 };
+    nums[1].split(",").map(v => v.trim()).filter(v => v).forEach(v => {
+      let m = v.split(":");
+      let char = m[0].trim();
+      let val = parseFloat(m[1].trim());
+      vec[char] = val;
+    });
+    return vec;
   }
   static colorToString(v) {
     return 'color { r: ' + (v.r || 0.0) + ', g: ' + (v.g || 0.0) + ', b: ' + (v.b || 0) + ', a: ' + (v.a || 1) + '}';

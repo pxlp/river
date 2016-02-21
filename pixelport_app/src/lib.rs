@@ -62,7 +62,7 @@ pub struct AppOptions {
 
 impl App {
     pub fn new(mut opts: AppOptions) -> App {
-        let mut subdoc = pixelport_subdoc::SubdocSubSystem::new(opts.root_path.clone());
+        let mut subdoc = pixelport_subdoc::SubdocSubSystem::new();
         let mut template = pixelport_template::TemplateSubSystem::new(opts.root_path.clone());
         let mut animation = pixelport_animation::AnimationSubSystem::new();
         let mut resources = pixelport_resources::ResourceStorage::new(opts.root_path.clone());
@@ -76,6 +76,7 @@ impl App {
         pixelport_util::pon_util(&mut opts.document.runtime);
         pixelport_bounding::pon_bounding(&mut opts.document.runtime);
         pixelport_models::pon_models(&mut opts.document.runtime);
+        pixelport_models::init_logging();
         subdoc.on_init(&mut opts.document);
         template.on_init(&mut opts.document);
         animation.on_init(&mut opts.document);
@@ -122,12 +123,12 @@ impl App {
         for _ in 0..100 { // At most 100 cycles before we do an update
             // A cycle is basically a subset of a frame. There might be 1 or more cycles per frame.
             let cycle_changes = self.document.close_cycle();
-            self.subdoc.on_cycle(&mut self.document, &cycle_changes);
+            self.subdoc.on_cycle(&mut self.document, &cycle_changes, &mut self.models);
             self.template.on_cycle(&mut self.document, &cycle_changes);
             self.animation.on_cycle(&mut self.document, &cycle_changes, time, &mut self.models);
             self.layout.on_cycle(&mut self.document, &cycle_changes);
             self.picking.on_cycle(&mut self.document, &cycle_changes);
-            self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources);
+            self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources, &mut self.models);
             self.tcpinterface.on_cycle(&mut self.document, &cycle_changes);
             self.culling.on_cycle(&mut self.document, &cycle_changes);
             if cycle_changes.set_properties.len() == 0 && cycle_changes.entities_added.len() == 0 &&
@@ -135,12 +136,15 @@ impl App {
                 break;
             }
         }
-        self.subdoc.on_update(&mut self.document);
         self.animation.on_update(&mut self.document, time);
         self.layout.on_update(&mut self.document);
         self.picking.on_update(&mut self.document);
-        self.viewport.on_update(&mut self.document, dtime, &mut self.resources);
-        self.tcpinterface.on_update(&mut self.document, &mut TCPInterfaceEnvironment { resources: &mut self.resources, viewport: &mut self.viewport });
+        self.viewport.on_update(&mut self.document, dtime, &mut self.resources, &mut self.models);
+        self.tcpinterface.on_update(&mut self.document, &mut TCPInterfaceEnvironment {
+            viewport: &mut self.viewport,
+            resources: &mut self.resources,
+            models: &mut self.models
+        });
         self.culling.on_update(&mut self.document);
         self.resources.update();
         if let Some(min_frame_ms) = self.min_frame_ms {
@@ -156,7 +160,8 @@ impl App {
 
 struct TCPInterfaceEnvironment<'a> {
     viewport: &'a mut pixelport_viewport::ViewportSubSystem,
-    resources: &'a mut pixelport_resources::ResourceStorage
+    resources: &'a mut pixelport_resources::ResourceStorage,
+    models: &'a mut pixelport_models::Models,
 }
 
 impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnvironment<'a> {
@@ -185,7 +190,7 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
         }
     }
     fn rebuild_scene(&mut self, doc: &mut Document) {
-        self.viewport.rebuild_scene(self.resources, doc);
+        self.viewport.rebuild_scene(self.resources, &mut self.models, doc);
     }
     fn update_all_uniforms(&mut self, doc: &mut Document) {
         self.viewport.update_all_uniforms(doc);
@@ -197,7 +202,7 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
         self.resources.dump();
     }
     fn entity_renderers_bounding(&mut self, entity_id: EntityId, doc: &mut Document) -> Result<Vec<pixelport_tcpinterface::AABB>, String> {
-        match self.viewport.entity_renderers_bounding(self.resources, entity_id, doc) {
+        match self.viewport.entity_renderers_bounding(self.resources, &mut self.models, entity_id, doc) {
             Ok(boundings) => Ok(boundings.into_iter().map(|bounding| {
                 pixelport_tcpinterface::AABB {
                     screen_min: pixelport_tcpinterface::Vec3 {

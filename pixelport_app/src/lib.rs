@@ -23,6 +23,8 @@ use std::ffi::CStr;
 use libc::c_char;
 use std::path::{PathBuf, Path};
 use time::*;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 use pixelport_document::*;
 
@@ -91,6 +93,12 @@ impl App {
             &TimeProgression::Real => time::get_time(),
             &TimeProgression::Fixed { .. } => Timespec::new(0, 0)
         };
+
+        let start_time_inner = start_time.clone();
+        opts.document.runtime.register_function("time", move |_, _, _| {
+            let t: f32 = (time::get_time() - start_time_inner).num_milliseconds() as f32 / 1000.0;
+            Ok(Box::new(t))
+        }, "time");
         App {
             document: opts.document,
             subdoc: subdoc,

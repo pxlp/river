@@ -254,6 +254,9 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
         }
         stats
     }
+    fn list_textures(&mut self) -> Vec<String> {
+        self.resources.gl_textures.keys().map(|k| format!("{:?}", k)).collect()
+    }
 }
 
 #[no_mangle]

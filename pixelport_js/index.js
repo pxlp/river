@@ -196,6 +196,12 @@ class Pixelport extends EventEmitter {
     });
   }
 
+  listTextures() {
+    return this._request({
+      ListTextures: []
+    }).then(res => res.Textures);
+  }
+
   shutdown() {
     this.process.kill();
   }

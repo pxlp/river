@@ -265,6 +265,31 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
             }
         }).collect()
     }
+    fn get_texture_content(&mut self, id: u32) -> Result<pixelport_tcpinterface::messages::RawImage, String> {
+        let t = self.resources.gl_textures.values().find(|v| {
+            if let Some(v) = v.value() {
+                v.texture == id
+            } else {
+                false
+            }
+        });
+        if let Some(t) = t {
+            if let Some(t) = t.value() {
+                let ts = t.to_texture_source();
+                Ok(pixelport_tcpinterface::messages::RawImage {
+                    content: ts.to_base64().unwrap(),
+                    width: t.width as u32,
+                    height: t.height as u32,
+                    pixel_format: t.format.to_pon_enum(),
+                    pixel_type: ts.content.pixel_type().to_pon_enum()
+                })
+            } else {
+                Err(format!("Texture still loading: {}", id))
+            }
+        } else {
+            Err(format!("No such texture: {}", id))
+        }
+    }
 }
 
 #[no_mangle]

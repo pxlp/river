@@ -123,7 +123,7 @@ class Pixelport extends EventEmitter {
     return this._request({
       Screenshot: []
     }).then(function(resp) {
-      return resp.Screenshot;
+      return resp.PngImage;
     });
   }
 
@@ -202,6 +202,12 @@ class Pixelport extends EventEmitter {
     }).then(res => res.Textures);
   }
 
+  getTextureContent(id) {
+    return this._request({
+      GetTextureContent: { id: id }
+    }).then(res => res.RawImage);
+  }
+
   shutdown() {
     this.process.kill();
   }
@@ -261,8 +267,13 @@ class Pixelport extends EventEmitter {
       if (pending) {
         delete this.pending[message.Response.request_id];
         if (message.Response.response.Ok) {
-          if (message.Response.response.Ok.data.Screenshot) { // Screenshots are massive, hiding it from the console
-            debug_response("id=%d, OK Screenshot", message.Response.request_id);
+          if (message.Response.response.Ok.data.PngImage) { // PngImages are massive, hiding it from the console
+            debug_response("id=%d, OK PngImage { content: [%d bytes] }", message.Response.request_id,
+              message.Response.response.Ok.data.PngImage.content.length);
+          } else if (message.Response.response.Ok.data.RawImage) { // RawImage are also massive
+            let img = message.Response.response.Ok.data.RawImage;
+            debug_response("id=%d, OK RawImage { content: [%d bytes], width: %d, height: %d, pixel_format: %s, pixel_type: %s }",
+              message.Response.request_id, img.content.length, img.width, img.height, img.pixel_format, img.pixel_type);
           } else {
             debug_response("id=%d, OK %o", message.Response.request_id, message.Response.response.Ok.data);
           }

@@ -83,15 +83,15 @@ macro_rules! pon_expand {
 macro_rules! pon_register_functions {
     ($runtime:expr => $($func_name:ident($($args:tt)*) {$($env_ident:ident: $env:expr),*} $ret:ty => $body:block)*) => (
         $({
-            $(let mut $env_ident = $env.clone(); )*
-            $runtime.register_function(stringify!($func_name), move |pon, runtime, document| {
+            fn $func_name(pon: &Pon, runtime: &PonRuntime, document: &Document) -> Result<Box<PonNativeObject>, PonRuntimeErr> {
                 pon_expand!(pon, runtime, document => $($args)*);
                 let val: Result<$ret, PonRuntimeErr> = $body;
                 match val {
                     Ok(v) => Ok(Box::new(v)),
                     Err(err) => Err(err)
                 }
-            }, stringify!($ret));
+            }
+            $runtime.register_function(stringify!($func_name), $func_name, stringify!($ret));
         })*
     );
 }

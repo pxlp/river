@@ -128,22 +128,17 @@ impl App {
         self.prev_time = curr_time;
 
         if self.viewport.pre_update(&mut self.document) { return false; }
-        for _ in 0..100 { // At most 100 cycles before we do an update
-            // A cycle is basically a subset of a frame. There might be 1 or more cycles per frame.
-            let cycle_changes = self.document.close_cycle();
-            self.subdoc.on_cycle(&mut self.document, &cycle_changes, &mut self.models);
-            self.template.on_cycle(&mut self.document, &cycle_changes);
-            self.animation.on_cycle(&mut self.document, &cycle_changes, time, &mut self.models);
-            self.layout.on_cycle(&mut self.document, &cycle_changes);
-            self.picking.on_cycle(&mut self.document, &cycle_changes);
-            self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources, &mut self.models);
-            self.tcpinterface.on_cycle(&mut self.document, &cycle_changes);
-            self.culling.on_cycle(&mut self.document, &cycle_changes);
-            if cycle_changes.set_properties.len() == 0 && cycle_changes.entities_added.len() == 0 &&
-                cycle_changes.entities_removed.len() == 0 {
-                break;
-            }
-        }
+
+        let cycle_changes = self.document.close_cycle();
+        self.subdoc.on_cycle(&mut self.document, &cycle_changes, &mut self.models);
+        self.template.on_cycle(&mut self.document, &cycle_changes);
+        self.animation.on_cycle(&mut self.document, &cycle_changes, time, &mut self.models);
+        self.layout.on_cycle(&mut self.document, &cycle_changes);
+        self.picking.on_cycle(&mut self.document, &cycle_changes);
+        self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources, &mut self.models);
+        self.tcpinterface.on_cycle(&mut self.document, &cycle_changes);
+        self.culling.on_cycle(&mut self.document, &cycle_changes);
+            
         self.animation.on_update(&mut self.document, time);
         self.layout.on_update(&mut self.document);
         self.picking.on_update(&mut self.document);

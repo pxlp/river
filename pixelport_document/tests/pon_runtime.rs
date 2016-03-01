@@ -123,14 +123,3 @@ fn test_enum() {
     );
     assert_eq!(runtime.translate::<String>(&Pon::from_string("testy 'va'").unwrap(), &mut doc).unwrap(), "what".to_string());
 }
-
-#[test]
-fn test_env() {
-    let mut doc = Document::new();
-    let mut runtime = PonRuntime::new();
-    let capture = 2.0;
-    pon_register_functions!(runtime =>
-        testy(some: (f32)) {capt: capture} f32 => { Ok(some*capt) }
-    );
-    assert_eq!(runtime.translate::<f32>(&Pon::from_string("testy 5.0").unwrap(), &mut doc).unwrap(), 10.0);
-}

@@ -66,6 +66,16 @@ fn test_property_reference_array() {
     assert_eq!(doc.get_property::<f32>(ent, "y").unwrap(), 10.0);
 }
 
+#[test]
+fn test_property_array_reference() {
+    let mut doc = Document::from_string(r#"<Entity name="tmp" x="[5.0]" y="testy @this.x" />"#).unwrap();
+    pon_register_functions!(doc.runtime =>
+        testy(some: [f32]) {} f32 => { Ok(some[0]*2.0) }
+    );
+    let ent = doc.get_entity_by_name("tmp").unwrap();
+    assert_eq!(doc.get_property::<f32>(ent, "y").unwrap(), 10.0);
+}
+
 // #[test]
 // fn test_property_reference_bad_ref() {
 //     let mut doc = Document::from_string(r#"<Entity name="tmp" x="5.0" y="@what.x" />"#).unwrap();

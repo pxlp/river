@@ -56,17 +56,17 @@ macro_rules! pon_expand {
     });
     ($pon:expr, $runtime:expr, $doc:expr => { $typ:ty }) => ({
         let mut map = HashMap::new();
-        for (k, v) in try!($runtime.as_map($pon)) {
+        for (k, v) in try!($runtime.translate::<::std::collections::HashMap<String, Pon>>($pon, $doc)).iter() {
             map.insert(k.to_string(), try!($runtime.translate::<$typ>(v, $doc)));
         }
         map
     });
     ($pon:expr, $runtime:expr, $doc:expr => { $($rest:tt)* }) => (
-        pon_expand_map!(try!($runtime.as_map($pon)), $runtime, $doc => { $($rest)* })
+        pon_expand_map!(&try!($runtime.translate::<::std::collections::HashMap<String, Pon>>($pon, $doc)), $runtime, $doc => { $($rest)* })
     );
     ($pon:expr, $runtime:expr, $doc:expr => [ $typ:ty ]) => ({
         let mut arr = vec![];
-        for v in try!($runtime.as_array($pon)) {
+        for v in &try!($runtime.translate::<Vec<Pon>>($pon, $doc)) {
             arr.push(try!($runtime.translate::<$typ>(v, $doc)));
         }
         arr
@@ -118,18 +118,6 @@ impl PonRuntime {
             func: Box::new(func),
             target_type_name: target_type_name.to_string()
         });
-    }
-    pub fn as_map<'a, 'b>(&'a self, pon: &'b Pon) -> Result<&'b HashMap<String, Pon>, PonRuntimeErr> {
-        match pon {
-            &Pon::Object(ref hm) => Ok(hm),
-            _ => Err(PonRuntimeErr::value_unexpected_type::<HashMap<String, Pon>>(pon))
-        }
-    }
-    pub fn as_array<'a, 'b>(&'a self, pon: &'b Pon) -> Result<&'b Vec<Pon>, PonRuntimeErr> {
-        match pon {
-            &Pon::Array(ref arr) => Ok(arr),
-            _ => Err(PonRuntimeErr::value_unexpected_type::<Vec<Pon>>(pon))
-        }
     }
     pub fn translate<T: Clone + Reflect + 'static>(&self, pon: &Pon, document: &Document) -> Result<T, PonRuntimeErr> {
         match try!(self.translate_raw(pon, document)).as_any().downcast_ref::<T>() {

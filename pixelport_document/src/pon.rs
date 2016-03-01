@@ -18,7 +18,6 @@ use std::any::Any;
 use std::fmt::Debug;
 use std::marker::Reflect;
 
-
 pub fn selector_from_string(string: &str) -> Result<Selector, PonParseError> {
     pon_peg::selector(string)
 }
@@ -342,5 +341,14 @@ impl ToPon for Matrix4<f32> {
                 Pon::Number(self.w.x), Pon::Number(self.w.y), Pon::Number(self.w.z), Pon::Number(self.w.w),
             ])
         }))
+    }
+}
+
+
+impl ToPon for Vec<Matrix4<f32>> {
+    fn to_pon(&self) -> Pon {
+        Pon::Array(self.iter().map(|val| {
+            val.to_pon()
+        }).collect())
     }
 }

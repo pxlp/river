@@ -3,48 +3,47 @@ use std::collections::HashMap;
 
 use pon::*;
 use document::*;
+use bus::*;
 
-use std::any::Any;
 use std::marker::Reflect;
-
 
 #[macro_export]
 macro_rules! pon_expand_map {
-    ($map:expr, $runtime:expr, $doc:expr => { }) => (());
-    ($map:expr, $runtime:expr, $doc:expr => { $name:ident : $inner:tt, $($rest:tt)* }) => (
+    ($map:expr, $runtime:expr, $bus:expr => { }) => (());
+    ($map:expr, $runtime:expr, $bus:expr => { $name:ident : $inner:tt, $($rest:tt)* }) => (
         let $name = match $map.get(stringify!($name)) {
             Some(v) => {
-                pon_expand!(v, $runtime, $doc => $inner)
+                pon_expand!(v, $runtime, $bus => $inner)
             },
             None => return Err(PonRuntimeErr::RequiredFieldMissing { field: From::from(stringify!($name)) })
         };
-        pon_expand_map!($map, $runtime, $doc => { $($rest)* })
+        pon_expand_map!($map, $runtime, $bus => { $($rest)* })
     );
-    ($map:expr, $runtime:expr, $doc:expr => { $name:ident : $inner:tt optional, $($rest:tt)* }) => (
+    ($map:expr, $runtime:expr, $bus:expr => { $name:ident : $inner:tt optional, $($rest:tt)* }) => (
         let $name = match $map.get(stringify!($name)) {
             Some(v) => {
-                Some(pon_expand!(v, $runtime, $doc => $inner))
+                Some(pon_expand!(v, $runtime, $bus => $inner))
             },
             None => None
         };
-        pon_expand_map!($map, $runtime, $doc => { $($rest)* })
+        pon_expand_map!($map, $runtime, $bus => { $($rest)* })
     );
-    ($map:expr, $runtime:expr, $doc:expr => { $name:ident : $inner:tt | $default:expr, $($rest:tt)* }) => (
+    ($map:expr, $runtime:expr, $bus:expr => { $name:ident : $inner:tt | $default:expr, $($rest:tt)* }) => (
         let $name = match $map.get(stringify!($name)) {
             Some(v) => {
-                pon_expand!(v, $runtime, $doc => $inner)
+                pon_expand!(v, $runtime, $bus => $inner)
             },
             None => From::from($default)
         };
-        pon_expand_map!($map, $runtime, $doc => { $($rest)* })
+        pon_expand_map!($map, $runtime, $bus => { $($rest)* })
     );
 }
 
 #[macro_export]
 macro_rules! pon_expand {
-    ($pon:expr, $runtime:expr, $doc:expr => ) => (());
-    ($pon:expr, $runtime:expr, $doc:expr => ( enum { $($id:expr => $val:expr,)+ } )) => ({
-        match (try!($runtime.translate::<String>($pon, $doc))).as_str() {
+    ($pon:expr, $runtime:expr, $bus:expr => ) => (());
+    ($pon:expr, $runtime:expr, $bus:expr => ( enum { $($id:expr => $val:expr,)+ } )) => ({
+        match (try!($runtime.translate::<String>($pon, $bus))).as_str() {
             $(
             $id => $val,
             )+
@@ -54,28 +53,28 @@ macro_rules! pon_expand {
             })
         }
     });
-    ($pon:expr, $runtime:expr, $doc:expr => { $typ:ty }) => ({
+    ($pon:expr, $runtime:expr, $bus:expr => { $typ:ty }) => ({
         let mut map = HashMap::new();
-        for (k, v) in try!($runtime.translate::<::std::collections::HashMap<String, Pon>>($pon, $doc)).iter() {
-            map.insert(k.to_string(), try!($runtime.translate::<$typ>(v, $doc)));
+        for (k, v) in try!($runtime.translate::<::std::collections::HashMap<String, Pon>>($pon, $bus)).iter() {
+            map.insert(k.to_string(), try!($runtime.translate::<$typ>(v, $bus)));
         }
         map
     });
-    ($pon:expr, $runtime:expr, $doc:expr => { $($rest:tt)* }) => (
-        pon_expand_map!(&try!($runtime.translate::<::std::collections::HashMap<String, Pon>>($pon, $doc)), $runtime, $doc => { $($rest)* })
+    ($pon:expr, $runtime:expr, $bus:expr => { $($rest:tt)* }) => (
+        pon_expand_map!(&try!($runtime.translate::<::std::collections::HashMap<String, Pon>>($pon, $bus)), $runtime, $bus => { $($rest)* })
     );
-    ($pon:expr, $runtime:expr, $doc:expr => [ $typ:ty ]) => ({
+    ($pon:expr, $runtime:expr, $bus:expr => [ $typ:ty ]) => ({
         let mut arr = vec![];
-        for v in &try!($runtime.translate::<Vec<Pon>>($pon, $doc)) {
-            arr.push(try!($runtime.translate::<$typ>(v, $doc)));
+        for v in &try!($runtime.translate::<Vec<Pon>>($pon, $bus)) {
+            arr.push(try!($runtime.translate::<$typ>(v, $bus)));
         }
         arr
     });
-    ($pon:expr, $runtime:expr, $doc:expr => ( $typ:ty )) => (
-        try!($runtime.translate::<$typ>($pon, $doc))
+    ($pon:expr, $runtime:expr, $bus:expr => ( $typ:ty )) => (
+        try!($runtime.translate::<$typ>($pon, $bus))
     );
-    ($pon:expr, $runtime:expr, $doc:expr => $name:ident : $t:tt) => (
-        let $name = pon_expand!($pon, $runtime, $doc => $t);
+    ($pon:expr, $runtime:expr, $bus:expr => $name:ident : $t:tt) => (
+        let $name = pon_expand!($pon, $runtime, $bus => $t);
     );
 }
 
@@ -83,8 +82,8 @@ macro_rules! pon_expand {
 macro_rules! pon_register_functions {
     ($runtime:expr => $($func_name:ident($($args:tt)*) {$($env_ident:ident: $env:expr),*} $ret:ty => $body:block)*) => (
         $({
-            fn $func_name(pon: &Pon, runtime: &PonRuntime, document: &Document) -> Result<Box<PonNativeObject>, PonRuntimeErr> {
-                pon_expand!(pon, runtime, document => $($args)*);
+            fn $func_name(pon: &Pon, runtime: &PonRuntime, bus: &$crate::bus::Bus<PropRef>) -> Result<Box<$crate::bus::BusValue>, PonRuntimeErr> {
+                pon_expand!(pon, runtime, bus => $($args)*);
                 let val: Result<$ret, PonRuntimeErr> = $body;
                 match val {
                     Ok(v) => Ok(Box::new(v)),
@@ -98,7 +97,7 @@ macro_rules! pon_register_functions {
 
 
 struct PonFn {
-    func: Box<Fn(&Pon, &PonRuntime, &Document) -> Result<Box<PonNativeObject>, PonRuntimeErr>>,
+    func: Box<Fn(&Pon, &PonRuntime, &Bus<PropRef>) -> Result<Box<BusValue>, PonRuntimeErr>>,
     target_type_name: String
 }
 
@@ -113,16 +112,16 @@ impl PonRuntime {
         }
     }
     pub fn register_function<F>(&mut self, name: &str, func: F, target_type_name: &str)
-        where F: Fn(&Pon, &PonRuntime, &Document) -> Result<Box<PonNativeObject>, PonRuntimeErr> + 'static {
+        where F: Fn(&Pon, &PonRuntime, &Bus<PropRef>) -> Result<Box<BusValue>, PonRuntimeErr> + 'static {
         self.functions.insert(name.to_string(), PonFn {
             func: Box::new(func),
             target_type_name: target_type_name.to_string()
         });
     }
-    pub fn translate<T: Clone + Reflect + 'static>(&self, pon: &Pon, document: &Document) -> Result<T, PonRuntimeErr> {
-        match try!(self.translate_raw(pon, document)).as_any().downcast_ref::<T>() {
-            Some(v) => Ok(v.clone()),
-            None => {
+    pub fn translate<T: BusValue>(&self, pon: &Pon, bus: &Bus<PropRef>) -> Result<T, PonRuntimeErr> {
+        match try!(self.translate_raw(pon, bus)).downcast::<T>() {
+            Ok(box v) => Ok(v),
+            Err(_) => {
                 let to_type_name = unsafe {
                     ::std::intrinsics::type_name::<T>()
                 };
@@ -133,11 +132,11 @@ impl PonRuntime {
             }
         }
     }
-    pub fn translate_raw(&self, pon: &Pon, document: &Document) -> Result<Box<PonNativeObject>, PonRuntimeErr> {
+    pub fn translate_raw(&self, pon: &Pon, bus: &Bus<PropRef>) -> Result<Box<BusValue>, PonRuntimeErr> {
         match pon {
             &Pon::PonCall(box PonCall { ref function_name, ref arg }) => {
                 match self.functions.get(function_name) {
-                    Some(func) => match (*func.func)(arg, self, document) {
+                    Some(func) => match (*func.func)(arg, self, bus) {
                         Ok(val) => Ok(val),
                         Err(err) => {
                             Err(PonRuntimeErr::CallError { in_pon: pon.clone(), error: Box::new(err) })
@@ -147,25 +146,25 @@ impl PonRuntime {
                 }
             },
             &Pon::DependencyReference(ref named_prop_ref, Some(ref prop_ref)) => {
-                match document.get_property_raw(prop_ref.entity_id, &prop_ref.property_key) {
-                    Ok(val) => Ok(val.clone_to_pno()),
-                    Err(err) => Err(PonRuntimeErr::BadDependency { property: named_prop_ref.clone(), error: Box::new(err) })
+                match bus.get(&prop_ref) {
+                    Ok(val) => Ok(val),
+                    Err(err) => unimplemented!() //Err(PonRuntimeErr::BadDependency { property: named_prop_ref.clone(), error: Box::new(err) })
                 }
             },
             &Pon::DependencyReference(ref named_prop_ref, None) => panic!("Trying to translate on non-resolved dependency reference"),
-            &Pon::Reference(ref named_prop_ref) => Ok(named_prop_ref.clone_to_pno()),
-            &Pon::Selector(ref selector) => Ok(selector.clone_to_pno()),
-            &Pon::Array(ref value) => Ok(value.clone_to_pno()),
-            &Pon::Object(ref value) => Ok(value.clone_to_pno()),
-            &Pon::Number(ref value) => Ok(value.clone_to_pno()),
-            &Pon::String(ref value) => Ok(value.clone_to_pno()),
-            &Pon::Boolean(ref value) => Ok(value.clone_to_pno()),
+            &Pon::Reference(ref named_prop_ref) => Ok(Box::new(named_prop_ref.clone())),
+            &Pon::Selector(ref selector) => Ok(Box::new(selector.clone())),
+            &Pon::Array(ref value) => Ok(Box::new(value.clone())),
+            &Pon::Object(ref value) => Ok(Box::new(value.clone())),
+            &Pon::Number(ref value) => Ok(Box::new(value.clone())),
+            &Pon::String(ref value) => Ok(Box::new(value.clone())),
+            &Pon::Boolean(ref value) => Ok(Box::new(value.clone())),
             &Pon::Nil => Err(PonRuntimeErr::Nil)
         }
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PonRuntimeErr {
     BadDependency { property: NamedPropRef, error: Box<DocError> },
     CallError { in_pon: Pon, error: Box<PonRuntimeErr> },

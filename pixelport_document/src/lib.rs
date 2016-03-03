@@ -5,6 +5,8 @@ extern crate xml;
 extern crate cgmath;
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate mopa;
 
 #[macro_use]
 pub mod hashmap_macro;
@@ -16,7 +18,8 @@ pub mod document;
 pub mod selector;
 pub mod selection;
 pub mod entity_match;
-mod properties;
+pub mod bus;
+//mod properties;
 
 pub use pon::*;
 #[macro_use]
@@ -25,6 +28,7 @@ pub use document::*;
 pub use selector::*;
 pub use selection::*;
 pub use entity_match::*;
+pub use bus::*;
 use std::hash::Hasher;
 use std::hash::Hash;
 
@@ -35,7 +39,7 @@ pub struct Rectangle {
     pub width: f32,
     pub height: f32
 }
-impl_pno!(Rectangle);
+//impl_pno!(Rectangle);
 impl Hash for Rectangle {
     fn hash<H>(&self, state: &mut H) where H: Hasher {
         let str = format!("{:?}", self);

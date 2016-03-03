@@ -38,7 +38,7 @@ impl ToString for SelectorRoot {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SelectorPath {
     Parent,
     Children(EntityMatch),
@@ -115,12 +115,17 @@ impl ToString for SelectorPath {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Selector {
     pub root: SelectorRoot,
     pub path: Vec<SelectorPath>,
 }
-impl_pno!(Selector);
+//impl_pno!(Selector);
+impl ToPon for Selector {
+    fn to_pon(&self) -> Pon {
+        Pon::Selector(self.clone())
+    }
+}
 
 enum PathMatchResult {
     Unresolved(usize),

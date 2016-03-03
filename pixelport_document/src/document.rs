@@ -1,7 +1,7 @@
 use xml;
 use pon::*;
 use pon_runtime::*;
-use properties::*;
+use bus::*;
 
 use std::fs::File;
 use std::io::BufReader;
@@ -13,12 +13,14 @@ use std::any::Any;
 use std::marker::Reflect;
 use std::borrow::Cow;
 use std::fmt;
+use std::rc::Rc;
 
 use xml::reader::EventReader;
 use std::mem;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum DocError {
+    BusError(BusError),
     PonRuntimeErr { err: PonRuntimeErr, prop_ref: PropRef },
     NoSuchProperty { prop_ref: PropRef },
     NoSuchEntity(EntityId),
@@ -50,23 +52,21 @@ pub struct Entity {
 
 #[derive(Debug)]
 pub struct CycleChanges {
-    pub set_properties: Vec<PropRef>,
-    pub invalidated_properties: Vec<PropRef>,
+    pub invalidations_log: Vec<ChangedNonZero<PropRef>>,
     pub entities_added: Vec<EntityId>,
     pub entities_removed: Vec<Entity>,
 }
 impl CycleChanges {
     pub fn new() -> CycleChanges {
         CycleChanges {
-            set_properties: vec![],
-            invalidated_properties: vec![],
+            invalidations_log: vec![],
             entities_added: vec![],
             entities_removed: vec![]
         }
     }
     pub fn changed(&self) -> bool {
         return self.entities_added.len() > 0 || self.entities_removed.len() > 0 ||
-            self.set_properties.len() > 0 || self.invalidated_properties.len() > 0;
+            self.invalidations_log.len() > 0;
     }
 }
 
@@ -81,26 +81,32 @@ pub struct Document {
     entities: HashMap<EntityId, Entity>,
     entity_ids_by_name: HashMap<String, EntityId>,
     pub resources: HashMap<String, Box<Any>>,
-    pub runtime: PonRuntime,
-    properties: Properties,
+    runtime: Rc<PonRuntime>,
+    pub bus: Bus<PropRef>,
     this_cycle_changes: CycleChanges
 }
 
+impl From<BusError> for DocError {
+    fn from(err: BusError) -> DocError {
+        DocError::BusError(err)
+    }
+}
+
 impl Document {
-    pub fn new() -> Document {
+    pub fn new(runtime: PonRuntime) -> Document {
         Document {
             id_counter: 0,
             root: None,
             entities: HashMap::new(),
             entity_ids_by_name: HashMap::new(),
             resources: HashMap::new(),
-            runtime: PonRuntime::new(),
-            properties: Properties::new(),
+            runtime: Rc::new(runtime),
+            bus: Bus::new(),
             this_cycle_changes: CycleChanges::new(),
         }
     }
-    pub fn new_with_root() -> Document {
-        let mut doc = Document::new();
+    pub fn new_with_root(runtime: PonRuntime) -> Document {
+        let mut doc = Document::new(runtime);
         doc.append_entity(None, None, "Pml", None).unwrap();
         doc
     }
@@ -153,47 +159,58 @@ impl Document {
     }
     pub fn set_property(&mut self, entity_id: EntityId, property_key: &str, mut expression: Pon, volatile: bool) -> Result<(), DocError> {
         try!(self.resolve_pon_dependencies(entity_id, &mut expression));
-        self.properties.set_property(&PropRef::new(entity_id, property_key), expression, volatile)
-    }
-    pub fn get_property<T: Clone + Reflect + 'static>(&self, entity_id: EntityId, property_key: &str) -> Result<T, DocError> {
-        match try!(self.get_property_raw(entity_id, property_key)).as_any().downcast_ref::<T>() {
-            Some(v) => Ok(v.clone()),
-            None => {
-                let to_type_name = unsafe {
-                    ::std::intrinsics::type_name::<T>()
-                };
-                Err(DocError::PonRuntimeErr {
-                    err: PonRuntimeErr::ValueOfUnexpectedType {
-                        found_value: match self.get_property_expression(entity_id, property_key) {
-                            Ok(pon) => pon.to_string(),
-                            Err(_) => "No prop found".to_string()
-                        },
-                        expected_type: to_type_name.to_string()
-                    },
-                    prop_ref: PropRef::new(entity_id, property_key)
-                })
+        let mut dependencies = vec![];
+        expression.build_dependencies_array(&mut dependencies);
+        let rt = self.runtime.clone();
+        self.bus.set(&PropRef::new(entity_id, property_key), dependencies, volatile, Box::new(move |bus| {
+            match rt.translate_raw(&expression, bus) {
+                Ok(v) => v,
+                Err(_) => unimplemented!()
             }
+        }));
+        Ok(())
+    }
+    pub fn get_property<T: BusValue>(&self, entity_id: EntityId, property_key: &str) -> Result<T, DocError> {
+        match self.bus.get_typed::<T>(&PropRef::new(entity_id, property_key)) {
+            Ok(v) => Ok(v),
+            Err(err) => Err(err.into())
+        }
+        // match try!(self.get_property_raw(entity_id, property_key)).as_any().downcast_ref::<T>() {
+        //     Some(v) => Ok(v.clone()),
+        //     None => {
+        //         let to_type_name = unsafe {
+        //             ::std::intrinsics::type_name::<T>()
+        //         };
+        //         Err(DocError::PonRuntimeErr {
+        //             err: PonRuntimeErr::ValueOfUnexpectedType {
+        //                 found_value: match self.get_property_expression(entity_id, property_key) {
+        //                     Ok(pon) => pon.to_string(),
+        //                     Err(_) => "No prop found".to_string()
+        //                 },
+        //                 expected_type: to_type_name.to_string()
+        //             },
+        //             prop_ref: PropRef::new(entity_id, property_key)
+        //         })
+        //     }
+        // }
+    }
+    pub fn get_property_raw(&self, entity_id: EntityId, property_key: &str) -> Result<Box<BusValue>, DocError> {
+        match self.bus.get(&PropRef::new(entity_id, property_key)) {
+            Ok(v) => Ok(v),
+            Err(err) => Err(err.into())
         }
     }
-    pub fn get_property_raw(&self, entity_id: EntityId, property_key: &str) -> Result<Box<PonNativeObject>, DocError> {
-        self.properties.get_property_raw(&PropRef::new(entity_id, property_key), self)
-    }
     pub fn has_property(&self, entity_id: EntityId, property_key: &str) -> bool {
-        self.properties.has_property(&PropRef::new(entity_id, property_key))
+        self.bus.has(&PropRef::new(entity_id, property_key))
     }
     pub fn close_cycle(&mut self) -> CycleChanges {
         let mut cycle_changes = mem::replace(&mut self.this_cycle_changes, CycleChanges::new());
-        let prop_cc = self.properties.close_cycle();
-        cycle_changes.invalidated_properties = prop_cc.invalidated;
-        cycle_changes.set_properties = prop_cc.set;
+        cycle_changes.invalidations_log = mem::replace(&mut self.bus.invalidations_log, Vec::new());
         return cycle_changes;
-    }
-    pub fn get_property_expression(&self, entity_id: EntityId, property_key: &str) -> Result<&Pon, DocError> {
-        self.properties.get_property_expression(&PropRef::new(entity_id, property_key))
     }
     pub fn get_properties(&self, entity_id: EntityId) -> Result<Vec<PropRef>, DocError> {
         if !self.entities.contains_key(&entity_id) { return Err(DocError::NoSuchEntity(entity_id)); }
-        Ok(self.properties.get_properties_for_entity(entity_id))
+        Ok(self.get_properties_for_entity(entity_id))
     }
     pub fn get_children(&self, entity_id: EntityId) -> Result<&Vec<EntityId>, DocError> {
         match self.entities.get(&entity_id) {
@@ -260,7 +277,7 @@ impl Document {
     pub fn remove_entity(&mut self, entity_id: EntityId) -> Result<(), DocError> {
         match self.entities.remove(&entity_id) {
             Some(entity) => {
-                self.properties.remove_properties_for_entity(entity_id);
+                self.remove_properties_for_entity(entity_id);
                 if let &Some(ref parent_id) = &entity.parent_id {
                     match self.entities.get_mut(parent_id) {
                         Some(parent) => parent.children_ids.retain(|id| *id != entity_id),
@@ -306,8 +323,8 @@ impl Document {
         Ok(String::from_utf8(buff).unwrap())
     }
 
-    pub fn from_file(path: &Path) -> Result<Document, DocError> {
-        let mut doc = Document::new();
+    pub fn from_file(runtime: PonRuntime, path: &Path) -> Result<Document, DocError> {
+        let mut doc = Document::new(runtime);
         let mut warnings = vec![];
         try!(doc.append_from_event_reader(&mut vec![], event_reader_from_file(path).into_iter(), &mut warnings));
         if warnings.len() > 0 {
@@ -318,8 +335,8 @@ impl Document {
         }
         Ok(doc)
     }
-    pub fn from_string(string: &str) -> Result<Document, DocError> {
-        let mut doc = Document::new();
+    pub fn from_string(runtime: PonRuntime, string: &str) -> Result<Document, DocError> {
+        let mut doc = Document::new(runtime);
         let parser = EventReader::from_str(string);
         let mut warnings = vec![];
         try!(doc.append_from_event_reader(&mut vec![], parser.into_iter(), &mut warnings));
@@ -330,6 +347,21 @@ impl Document {
             }
         }
         Ok(doc)
+    }
+    fn get_properties_for_entity(&self, entity_id: EntityId) -> Vec<PropRef> {
+        self.bus.iter().filter_map(|k| {
+            if k.entity_id == entity_id {
+                Some(k.clone())
+            } else {
+                None
+            }
+        }).collect()
+    }
+    fn remove_properties_for_entity(&mut self, entity_id: EntityId) {
+        let props = self.get_properties_for_entity(entity_id);
+        for pr in props {
+            self.bus.remove(&pr);
+        }
     }
 
     fn resolve_pon_dependencies(&mut self, entity_id: EntityId, node: &mut Pon) -> Result<(), DocError> {
@@ -414,33 +446,34 @@ impl Document {
     }
 
     fn entity_to_xml<T: Write>(&self, entity_id: EntityId, writer: &mut xml::writer::EventWriter<T>) {
-        let entity = self.entities.get(&entity_id).unwrap();
-        let type_name = xml::name::Name::local(&entity.type_name);
-        let props = self.properties.get_properties_for_entity(entity_id);
-        let mut attrs: Vec<xml::attribute::OwnedAttribute> = props.iter().filter_map(|prop_ref| {
-            Some(xml::attribute::OwnedAttribute {
-                name: xml::name::OwnedName::local(prop_ref.property_key.to_string()),
-                value: self.properties.get_property_expression(prop_ref).unwrap().to_string()
-            })
-        }).collect();
-        if let &Some(ref name) = &entity.name {
-            attrs.push(xml::attribute::OwnedAttribute {
-                name: xml::name::OwnedName::local("name"),
-                value: name.to_string()
-            });
-        }
-        attrs.sort_by(|a, b| a.name.local_name.cmp(&b.name.local_name) );
-        writer.write(xml::writer::events::XmlEvent::StartElement {
-            name: type_name.clone(),
-            attributes: attrs.iter().map(|x| x.borrow()).collect(),
-            namespace: Cow::Owned(xml::namespace::Namespace::empty())
-        }).unwrap();
-        for e in &entity.children_ids {
-            self.entity_to_xml(*e, writer);
-        }
-        writer.write(xml::writer::events::XmlEvent::EndElement {
-            name: Some(type_name.clone())
-        }).unwrap();
+        unimplemented!();
+        // let entity = self.entities.get(&entity_id).unwrap();
+        // let type_name = xml::name::Name::local(&entity.type_name);
+        // let props = self.properties.get_properties_for_entity(entity_id);
+        // let mut attrs: Vec<xml::attribute::OwnedAttribute> = props.iter().filter_map(|prop_ref| {
+        //     Some(xml::attribute::OwnedAttribute {
+        //         name: xml::name::OwnedName::local(prop_ref.property_key.to_string()),
+        //         value: self.properties.get_property_expression(prop_ref).unwrap().to_string()
+        //     })
+        // }).collect();
+        // if let &Some(ref name) = &entity.name {
+        //     attrs.push(xml::attribute::OwnedAttribute {
+        //         name: xml::name::OwnedName::local("name"),
+        //         value: name.to_string()
+        //     });
+        // }
+        // attrs.sort_by(|a, b| a.name.local_name.cmp(&b.name.local_name) );
+        // writer.write(xml::writer::events::XmlEvent::StartElement {
+        //     name: type_name.clone(),
+        //     attributes: attrs.iter().map(|x| x.borrow()).collect(),
+        //     namespace: Cow::Owned(xml::namespace::Namespace::empty())
+        // }).unwrap();
+        // for e in &entity.children_ids {
+        //     self.entity_to_xml(*e, writer);
+        // }
+        // writer.write(xml::writer::events::XmlEvent::EndElement {
+        //     name: Some(type_name.clone())
+        // }).unwrap();
     }
     fn to_xml(&self) -> String {
         let mut buff = vec![];

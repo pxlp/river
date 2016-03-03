@@ -62,7 +62,7 @@ selector_path -> SelectorPath
 selector -> Selector
   = selector:selector_root sep* path:(selector_path)* {
     let mut selector = selector;
-    selector.path.push_all(&path);
+    selector.path.extend(path);
     selector
   }
 

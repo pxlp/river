@@ -1,8 +1,10 @@
 
 use document::*;
 use pon::*;
+use bus::*;
 
-#[derive(PartialEq, Eq, Debug, Clone, Hash, PartialOrd, Ord)]
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum EntityMatch {
     Any,
     Name(String),
@@ -18,9 +20,9 @@ impl EntityMatch {
     pub fn property_value(property: String, value: Pon) -> EntityMatch {
         if property == "name" {
             EntityMatch::Name(match value {
-                Pon::String(string) => string.to_string(),
-                _ => panic!("Name match must always be a string")
-            })
+                 Pon::String(string) => string.to_string(),
+                 _ => panic!("Name match must always be a string")
+             })
         } else {
             EntityMatch::PropertyValueEquals { property: property, value: Box::new(value) }
         }
@@ -36,12 +38,12 @@ impl EntityMatch {
                 Ok(&Some(ref val)) => val == name,
                 _ => false
             },
-            &EntityMatch::PropertyValueEquals { ref property, box ref value} => match document.get_property_expression(entity_id, property) {
-                Ok(val) => val == value,
+            &EntityMatch::PropertyValueEquals { ref property, box ref value} => match document.get_property_raw(entity_id, property) {
+                Ok(val) => &val.to_pon() == value,
                 Err(_) => false
             },
-            &EntityMatch::PropertyValueNotEquals { ref property, box ref value} => match document.get_property_expression(entity_id, property) {
-                Ok(val) => val != value,
+            &EntityMatch::PropertyValueNotEquals { ref property, box ref value} => match document.get_property_raw(entity_id, property) {
+                Ok(val) => &val.to_pon() != value,
                 Err(_) => true
             },
             &EntityMatch::PropertyExists(ref property) => document.has_property(entity_id, property),

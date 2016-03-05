@@ -13,13 +13,9 @@ impl Topic {
         }
     }
     pub fn invalidated<F: Fn(&Bus, &PropRef) -> bool>(&mut self, bus: &Bus, cycle_changes: &CycleChanges, filter: F) -> Vec<PropRef> {
-        println!("Topic INV");
         for c in &cycle_changes.invalidations_log {
-            println!("Topic INV {:?}", c);
             for i in &c.added {
-                println!("Topic INV TEST {:?}", i);
                 if filter(bus, i) {
-                    println!("Topic INV TEST PASSED {:?}", i);
                     self.invalidated.push(i.clone());
                 }
             }
@@ -47,10 +43,8 @@ impl PropertyKeyTopic {
         }
     }
     pub fn invalidated(&mut self, bus: &Bus, cycle_changes: &CycleChanges) -> Vec<PropRef> {
-        println!("PropertyKeyTopic INV");
         let keys = &self.keys;
         self.topic.invalidated(bus, cycle_changes, |bus, pr| {
-            println!("{:?} IN {:?} ??????", pr, keys);
             keys.contains(&pr.property_key)
         })
     }

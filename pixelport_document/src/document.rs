@@ -21,7 +21,6 @@ use std::mem;
 #[derive(PartialEq, Debug, Clone)]
 pub enum DocError {
     BusError(BusError),
-    PonRuntimeErr { err: PonRuntimeErr, prop_ref: PropRef },
     NoSuchProperty { prop_ref: PropRef },
     NoSuchEntity(EntityId),
     CantFindEntityByName(String),
@@ -30,8 +29,7 @@ pub enum DocError {
 impl ToString for DocError {
     fn to_string(&self) -> String {
         match self {
-            &DocError::PonRuntimeErr { ref err, ref prop_ref } =>
-                format!("Pon runtime error in {}.{}: {}", prop_ref.entity_id, prop_ref.property_key, err.to_string()),
+            &DocError::BusError(ref err) => format!("BusError({})", err.to_string()),
             _ => format!("{:?}", self)
         }
     }
@@ -166,46 +164,22 @@ impl Document {
         expression.build_dependencies_array(&mut dependencies);
         let rt = self.runtime.clone();
         self.property_expressions.insert(prop_ref.clone(), expression.clone());
-        self.bus.set(&prop_ref, dependencies, volatile, Box::new(move |bus| {
+        self.bus.set(&prop_ref.clone(), dependencies, volatile, Box::new(move |bus| {
             match rt.translate_raw(&expression, bus) {
                 Ok(v) => Ok(v),
                 Err(err) => {
                     warn!("Failed to translate pon to value: {}", err.to_string());
-                    Err(BusError::PonTranslateError(err))
+                    Err(BusError::PonTranslateError { err: err, prop_ref: prop_ref.clone() })
                 }
             }
         }));
         Ok(())
     }
-    pub fn get_property<T: BusValue>(&self, entity_id: EntityId, property_key: &str) -> Result<T, DocError> {
-        match self.bus.get_typed::<T>(&PropRef::new(entity_id, property_key)) {
-            Ok(v) => Ok(v),
-            Err(err) => Err(err.into())
-        }
-        // match try!(self.get_property_raw(entity_id, property_key)).as_any().downcast_ref::<T>() {
-        //     Some(v) => Ok(v.clone()),
-        //     None => {
-        //         let to_type_name = unsafe {
-        //             ::std::intrinsics::type_name::<T>()
-        //         };
-        //         Err(DocError::PonRuntimeErr {
-        //             err: PonRuntimeErr::ValueOfUnexpectedType {
-        //                 found_value: match self.get_property_expression(entity_id, property_key) {
-        //                     Ok(pon) => pon.to_string(),
-        //                     Err(_) => "No prop found".to_string()
-        //                 },
-        //                 expected_type: to_type_name.to_string()
-        //             },
-        //             prop_ref: PropRef::new(entity_id, property_key)
-        //         })
-        //     }
-        // }
+    pub fn get_property<T: BusValue>(&self, entity_id: EntityId, property_key: &str) -> Result<T, BusError> {
+        self.bus.get_typed::<T>(&PropRef::new(entity_id, property_key))
     }
-    pub fn get_property_raw(&self, entity_id: EntityId, property_key: &str) -> Result<Box<BusValue>, DocError> {
-        match self.bus.get(&PropRef::new(entity_id, property_key)) {
-            Ok(v) => Ok(v),
-            Err(err) => Err(err.into())
-        }
+    pub fn get_property_raw(&self, entity_id: EntityId, property_key: &str) -> Result<Box<BusValue>, BusError> {
+        self.bus.get(&PropRef::new(entity_id, property_key))
     }
     pub fn get_property_expression(&self, entity_id: EntityId, property_key: &str) -> Result<&Pon, DocError> {
         match self.property_expressions.get(&PropRef::new(entity_id, property_key)) {

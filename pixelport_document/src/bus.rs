@@ -60,8 +60,18 @@ pub struct Bus {
 pub enum BusError {
     NoSuchEntry { prop_ref: PropRef },
     EntryOfWrongType,
-    PonTranslateError(PonRuntimeErr)
+    PonTranslateError { err: PonRuntimeErr, prop_ref: PropRef },
 }
+impl ToString for BusError {
+    fn to_string(&self) -> String {
+        match self {
+            &BusError::PonTranslateError { ref err, ref prop_ref } =>
+                format!("Pon translate error in {}.{}: {}", prop_ref.entity_id, prop_ref.property_key, err.to_string()),
+            _ => format!("{:?}", self)
+        }
+    }
+}
+
 
 impl Bus {
     pub fn new() -> Bus {

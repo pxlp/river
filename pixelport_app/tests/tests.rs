@@ -25,7 +25,7 @@ fn headless_document_opts(filename: &str) -> AppOptions {
             window_size: Some((100, 100))
         },
         port: 0,
-        document: Document::from_file(path).unwrap(),
+        document: DocumentDescription::Empty,
         root_path: root_path,
         time_progression: TimeProgression::Fixed { step_ms: 16 },
         min_frame_ms: None

@@ -53,10 +53,15 @@ pub enum TimeProgression {
     Fixed { step_ms: u32 }
 }
 
+pub enum DocumentDescription {
+    Empty,
+    FromFile(PathBuf)
+}
+
 pub struct AppOptions {
     pub viewport: pixelport_viewport::ViewportSubSystemOptions,
     pub port: u16,
-    pub document: Document,
+    pub document: DocumentDescription,
     pub root_path: PathBuf,
     pub time_progression: TimeProgression,
     pub min_frame_ms: Option<f32>
@@ -75,32 +80,41 @@ impl App {
         let mut layout = pixelport_layout::LayoutSubSystem::new();
         let mut models = pixelport_models::Models::new(opts.root_path.clone());
 
-        pixelport_util::pon_util(&mut opts.document.runtime);
-        pixelport_bounding::pon_bounding(&mut opts.document.runtime);
-        pixelport_models::pon_models(&mut opts.document.runtime);
+        let mut runtime = PonRuntime::new();
+        pixelport_util::pon_util(&mut runtime);
+        pixelport_bounding::pon_bounding(&mut runtime);
+        pixelport_models::pon_models(&mut runtime);
         pixelport_models::init_logging();
-        subdoc.on_init(&mut opts.document);
-        template.on_init(&mut opts.document);
-        animation.on_init(&mut opts.document);
-        viewport.on_init(&mut opts.document);
-        picking.on_init(&mut opts.document);
-        culling.on_init(&mut opts.document);
-        layout.on_init(&mut opts.document);
+        subdoc.on_init(&mut runtime);
+        template.on_init(&mut runtime);
+        animation.on_init(&mut runtime);
+        viewport.on_init(&mut runtime);
+        picking.on_init(&mut runtime);
+        culling.on_init(&mut runtime);
+        layout.on_init(&mut runtime);
 
-        println!("## READY FOR CONNECTIONS ##");
-        println!("{{ \"port\": {} }}", tcpinterface.port());
         let start_time = match &opts.time_progression {
             &TimeProgression::Real => time::get_time(),
             &TimeProgression::Fixed { .. } => Timespec::new(0, 0)
         };
-
         let start_time_inner = start_time.clone();
-        opts.document.runtime.register_function("time", move |_, _, _| {
+        runtime.register_function("time", move |_, _, _| {
             let t: f32 = (time::get_time() - start_time_inner).num_milliseconds() as f32 / 1000.0;
             Ok(Box::new(t))
         }, "time");
+
+        let mut document = match &opts.document {
+            &DocumentDescription::Empty => Document::new_with_root(runtime),
+            &DocumentDescription::FromFile(ref path) => Document::from_file(runtime, path).unwrap()
+        };
+
+        viewport.set_doc(&mut document);
+
+        println!("## READY FOR CONNECTIONS ##");
+        println!("{{ \"port\": {} }}", tcpinterface.port());
+
         App {
-            document: opts.document,
+            document: document,
             subdoc: subdoc,
             template: template,
             animation: animation,
@@ -138,7 +152,7 @@ impl App {
         self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources, &mut self.models);
         self.tcpinterface.on_cycle(&mut self.document, &cycle_changes);
         self.culling.on_cycle(&mut self.document, &cycle_changes);
-            
+
         self.animation.on_update(&mut self.document, time);
         self.layout.on_update(&mut self.document);
         self.picking.on_update(&mut self.document);
@@ -256,7 +270,7 @@ pub extern "C" fn pixelport_new() -> *mut App {
             window_size: None
         },
         port: 4303,
-        document: Document::new_with_root(),
+        document: DocumentDescription::Empty,
         root_path: Path::new(".").to_path_buf(),
         time_progression: TimeProgression::Real,
         min_frame_ms: None

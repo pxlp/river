@@ -41,7 +41,6 @@ pub struct Rectangle {
     pub width: f32,
     pub height: f32
 }
-//impl_pno!(Rectangle);
 impl Hash for Rectangle {
     fn hash<H>(&self, state: &mut H) where H: Hasher {
         let str = format!("{:?}", self);

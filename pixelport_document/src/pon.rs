@@ -11,70 +11,12 @@ use std::slice::SliceConcatExt;
 use std::hash::Hasher;
 use std::hash::Hash;
 use std::cmp::Eq;
-use std::cmp::Ordering;
-use std::cmp::PartialOrd;
 use cgmath::{Vector2, Vector3, Vector4, Matrix4};
-use std::any::Any;
-use std::fmt::Debug;
-use std::marker::Reflect;
 
 
 pub fn selector_from_string(string: &str) -> Result<Selector, PonParseError> {
     pon_peg::selector(string)
 }
-//
-// pub trait PonNativeObject : Debug {
-//     fn clone_to_pno(&self) -> Box<PonNativeObject>;
-//     fn as_any(&self) -> &Any;
-// }
-//
-// #[macro_export]
-// macro_rules! impl_pno {
-//     ($typ:ty) => (
-//         impl $crate::pon::PonNativeObject for $typ {
-//             fn clone_to_pno(&self) -> Box<$crate::pon::PonNativeObject> {
-//                 Box::new(self.clone())
-//             }
-//             fn as_any(&self) -> &::std::any::Any {
-//                 self as &::std::any::Any
-//             }
-//         }
-//     )
-// }
-//
-// impl_pno!(Vec<Pon>);
-// impl_pno!(HashMap<String, Pon>);
-// impl_pno!(f32);
-// impl_pno!(String);
-// impl_pno!(bool);
-// impl_pno!(Matrix4<f32>);
-// impl_pno!(Vector2<f32>);
-// impl_pno!(Vector3<f32>);
-// impl_pno!(Vector4<f32>);
-// impl<T: PonNativeObject + Reflect + 'static + Clone> PonNativeObject for Vec<T> {
-//     fn clone_to_pno(&self) -> Box<PonNativeObject> {
-//         let mut p: Vec<T> = Vec::new();
-//         for x in self.iter() {
-//             p.push(x.clone());
-//         }
-//         Box::new(p)
-//     }
-//     fn as_any(&self) -> &::std::any::Any {
-//         self as &::std::any::Any
-//     }
-// }
-// impl<T: PonNativeObject + Reflect + 'static + Clone> PonNativeObject for HashMap<String, T> {
-//     fn clone_to_pno(&self) -> Box<PonNativeObject> {
-//         let mut p: HashMap<String, T> = HashMap::new();
-//         for (k, v) in self.iter() {
-//             p.insert(k.clone(), v.clone());
-//         }
-//         Box::new(p)
-//     }
-//     fn as_any(&self) -> &::std::any::Any {
-//         self as &::std::any::Any
-//     }
-// }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NamedPropRef {
@@ -106,7 +48,6 @@ impl ToPon for NamedPropRef {
         Pon::Reference(self.clone())
     }
 }
-//impl_pno!(NamedPropRef);
 
 #[derive(PartialEq, Debug, Clone, Hash, PartialOrd, Ord)]
 pub struct PropRef {
@@ -124,7 +65,6 @@ impl PropRef {
 impl Eq for PropRef {
     // hack, relies on PartialEq to be defined
 }
-//impl_pno!(PropRef);
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PonCall {

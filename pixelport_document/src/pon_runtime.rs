@@ -148,7 +148,8 @@ impl PonRuntime {
             &Pon::DependencyReference(ref named_prop_ref, Some(ref prop_ref)) => {
                 match bus.get(&prop_ref) {
                     Ok(val) => Ok(val),
-                    Err(err) => unimplemented!() //Err(PonRuntimeErr::BadDependency { property: named_prop_ref.clone(), error: Box::new(err) })
+                    Err(err @ BusError::NoSuchEntry { .. }) => Err(PonRuntimeErr::BadDependency { property: named_prop_ref.clone(), error: Box::new(err) }),
+                    Err(err) => Err(PonRuntimeErr::BusError(Box::new(err)))
                 }
             },
             &Pon::DependencyReference(ref named_prop_ref, None) => panic!("Trying to translate on non-resolved dependency reference"),
@@ -166,7 +167,8 @@ impl PonRuntime {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PonRuntimeErr {
-    BadDependency { property: NamedPropRef, error: Box<DocError> },
+    BadDependency { property: NamedPropRef, error: Box<BusError> },
+    BusError(Box<BusError>),
     CallError { in_pon: Pon, error: Box<PonRuntimeErr> },
     NoSuchFunction { function_name: String },
     RequiredFieldMissing { field: String },
@@ -192,6 +194,9 @@ impl ToString for PonRuntimeErr {
         match self {
             &PonRuntimeErr::BadDependency { ref property, ref error } => {
                 format!("Bad dependency reference \"{}\", got the following error looking it up: {}", property.to_string(), error.to_string())
+            }
+            &PonRuntimeErr::BusError(ref err) => {
+                format!("Buss error \"{}\"", err.to_string())
             }
             &PonRuntimeErr::ValueOfUnexpectedType { ref found_value, ref expected_type } => {
                 format!("Expected something of type {}, found \"{}\".", expected_type, found_value)

@@ -35,7 +35,7 @@ pub use topic::*;
 use std::hash::Hasher;
 use std::hash::Hash;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Rectangle {
     pub x: f32,
     pub y: f32,

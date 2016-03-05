@@ -83,6 +83,7 @@ pub struct Document {
     pub resources: HashMap<String, Box<Any>>,
     runtime: Rc<PonRuntime>,
     pub bus: Bus,
+    property_expressions: HashMap<PropRef, Pon>,
     this_cycle_changes: CycleChanges
 }
 
@@ -102,6 +103,7 @@ impl Document {
             resources: HashMap::new(),
             runtime: Rc::new(runtime),
             bus: Bus::new(),
+            property_expressions: HashMap::new(),
             this_cycle_changes: CycleChanges::new(),
         }
     }
@@ -158,11 +160,13 @@ impl Document {
         self.root.clone()
     }
     pub fn set_property(&mut self, entity_id: EntityId, property_key: &str, mut expression: Pon, volatile: bool) -> Result<(), DocError> {
+        let prop_ref = PropRef::new(entity_id, property_key);
         try!(self.resolve_pon_dependencies(entity_id, &mut expression));
         let mut dependencies = vec![];
         expression.build_dependencies_array(&mut dependencies);
         let rt = self.runtime.clone();
-        self.bus.set(&PropRef::new(entity_id, property_key), dependencies, volatile, Box::new(move |bus| {
+        self.property_expressions.insert(prop_ref.clone(), expression.clone());
+        self.bus.set(&prop_ref, dependencies, volatile, Box::new(move |bus| {
             match rt.translate_raw(&expression, bus) {
                 Ok(v) => v,
                 Err(_) => unimplemented!()
@@ -198,6 +202,12 @@ impl Document {
         match self.bus.get(&PropRef::new(entity_id, property_key)) {
             Ok(v) => Ok(v),
             Err(err) => Err(err.into())
+        }
+    }
+    pub fn get_property_expression(&self, entity_id: EntityId, property_key: &str) -> Result<&Pon, DocError> {
+        match self.property_expressions.get(&PropRef::new(entity_id, property_key)) {
+            Some(v) => Ok(v),
+            None => Err(DocError::NoSuchProperty { prop_ref: PropRef::new(entity_id, property_key) })
         }
     }
     pub fn has_property(&self, entity_id: EntityId, property_key: &str) -> bool {
@@ -361,6 +371,7 @@ impl Document {
         let props = self.get_properties_for_entity(entity_id);
         for pr in props {
             self.bus.remove(&pr);
+            self.property_expressions.remove(&pr);
         }
     }
 

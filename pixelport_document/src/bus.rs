@@ -111,7 +111,9 @@ impl Bus {
                 self.inv_dep_counter.change_counter_recursively(key.clone(), -1, &mut change);
             }
         }
-        self.invalidations_log.push(InvalidatedChange { added: change.added, removed: change.removed });
+        if change.added.len() > 0 || change.removed.len() > 0 {
+            self.invalidations_log.push(InvalidatedChange { added: change.added, removed: change.removed });
+        }
     }
     pub fn get(&self, key: &PropRef) -> Result<Box<BusValue>, BusError> {
         match self.entries.get(key) {

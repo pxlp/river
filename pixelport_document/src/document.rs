@@ -52,7 +52,7 @@ pub struct Entity {
 
 #[derive(Debug)]
 pub struct CycleChanges {
-    pub invalidations_log: Vec<ChangedNonZero<PropRef>>,
+    pub invalidations_log: Vec<InvalidatedChange>,
     pub entities_added: Vec<EntityId>,
     pub entities_removed: Vec<Entity>,
 }
@@ -82,7 +82,7 @@ pub struct Document {
     entity_ids_by_name: HashMap<String, EntityId>,
     pub resources: HashMap<String, Box<Any>>,
     runtime: Rc<PonRuntime>,
-    pub bus: Bus<PropRef>,
+    pub bus: Bus,
     this_cycle_changes: CycleChanges
 }
 

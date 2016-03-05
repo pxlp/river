@@ -18,7 +18,9 @@ pub mod document;
 pub mod selector;
 pub mod selection;
 pub mod entity_match;
+mod inverse_dependencies_counter;
 pub mod bus;
+pub mod topic;
 //mod properties;
 
 pub use pon::*;

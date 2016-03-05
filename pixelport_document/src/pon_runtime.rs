@@ -82,7 +82,7 @@ macro_rules! pon_expand {
 macro_rules! pon_register_functions {
     ($runtime:expr => $($func_name:ident($($args:tt)*) {$($env_ident:ident: $env:expr),*} $ret:ty => $body:block)*) => (
         $({
-            fn $func_name(pon: &Pon, runtime: &PonRuntime, bus: &$crate::bus::Bus<PropRef>) -> Result<Box<$crate::bus::BusValue>, PonRuntimeErr> {
+            fn $func_name(pon: &Pon, runtime: &PonRuntime, bus: &$crate::bus::Bus) -> Result<Box<$crate::bus::BusValue>, PonRuntimeErr> {
                 pon_expand!(pon, runtime, bus => $($args)*);
                 let val: Result<$ret, PonRuntimeErr> = $body;
                 match val {
@@ -97,7 +97,7 @@ macro_rules! pon_register_functions {
 
 
 struct PonFn {
-    func: Box<Fn(&Pon, &PonRuntime, &Bus<PropRef>) -> Result<Box<BusValue>, PonRuntimeErr>>,
+    func: Box<Fn(&Pon, &PonRuntime, &Bus) -> Result<Box<BusValue>, PonRuntimeErr>>,
     target_type_name: String
 }
 
@@ -112,13 +112,13 @@ impl PonRuntime {
         }
     }
     pub fn register_function<F>(&mut self, name: &str, func: F, target_type_name: &str)
-        where F: Fn(&Pon, &PonRuntime, &Bus<PropRef>) -> Result<Box<BusValue>, PonRuntimeErr> + 'static {
+        where F: Fn(&Pon, &PonRuntime, &Bus) -> Result<Box<BusValue>, PonRuntimeErr> + 'static {
         self.functions.insert(name.to_string(), PonFn {
             func: Box::new(func),
             target_type_name: target_type_name.to_string()
         });
     }
-    pub fn translate<T: BusValue>(&self, pon: &Pon, bus: &Bus<PropRef>) -> Result<T, PonRuntimeErr> {
+    pub fn translate<T: BusValue>(&self, pon: &Pon, bus: &Bus) -> Result<T, PonRuntimeErr> {
         match try!(self.translate_raw(pon, bus)).downcast::<T>() {
             Ok(box v) => Ok(v),
             Err(_) => {
@@ -132,7 +132,7 @@ impl PonRuntime {
             }
         }
     }
-    pub fn translate_raw(&self, pon: &Pon, bus: &Bus<PropRef>) -> Result<Box<BusValue>, PonRuntimeErr> {
+    pub fn translate_raw(&self, pon: &Pon, bus: &Bus) -> Result<Box<BusValue>, PonRuntimeErr> {
         match pon {
             &Pon::PonCall(box PonCall { ref function_name, ref arg }) => {
                 match self.functions.get(function_name) {

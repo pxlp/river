@@ -4,6 +4,7 @@ use std::mem;
 use std::marker::Reflect;
 use mopa;
 use pon::{PropRef};
+use pon_runtime::PonRuntimeErr;
 use inverse_dependencies_counter::*;
 
 use std::fmt::Debug;
@@ -36,7 +37,7 @@ impl PartialEq for Box<BusValue> {
     }
 }
 
-pub type ValueConstructor = Fn(&Bus) -> Box<BusValue>;
+pub type ValueConstructor = Fn(&Bus) -> Result<Box<BusValue>, BusError>;
 
 struct BusEntry {
     construct: Box<ValueConstructor>,
@@ -58,7 +59,8 @@ pub struct Bus {
 #[derive(PartialEq, Debug, Clone)]
 pub enum BusError {
     NoSuchEntry { prop_ref: PropRef },
-    EntryOfWrongType
+    EntryOfWrongType,
+    PonTranslateError(PonRuntimeErr)
 }
 
 impl Bus {
@@ -103,7 +105,7 @@ impl Bus {
     }
     pub fn get(&self, key: &PropRef) -> Result<Box<BusValue>, BusError> {
         match self.entries.get(key) {
-            Some(val) => Ok((*val.construct)(self)),
+            Some(val) => (*val.construct)(self),
             None => Err(BusError::NoSuchEntry { prop_ref: key.clone() })
         }
     }

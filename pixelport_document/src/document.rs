@@ -168,8 +168,11 @@ impl Document {
         self.property_expressions.insert(prop_ref.clone(), expression.clone());
         self.bus.set(&prop_ref, dependencies, volatile, Box::new(move |bus| {
             match rt.translate_raw(&expression, bus) {
-                Ok(v) => v,
-                Err(_) => unimplemented!()
+                Ok(v) => Ok(v),
+                Err(err) => {
+                    warn!("Failed to translate pon to value: {}", err.to_string());
+                    Err(BusError::PonTranslateError(err))
+                }
             }
         }));
         Ok(())

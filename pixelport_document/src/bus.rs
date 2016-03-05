@@ -3,17 +3,17 @@ use std::collections::hash_map::Entry;
 use std::mem;
 use std::marker::Reflect;
 use mopa;
-use pon::{ToPon, PropRef};
+use pon::{PropRef};
 use inverse_dependencies_counter::*;
 
 use std::fmt::Debug;
-pub trait BusValue: mopa::Any + Debug + ToPon {
+pub trait BusValue: mopa::Any + Debug {
     fn bus_value_equals(&self, other: &Box<BusValue>) -> bool;
     fn bus_value_clone(&self) -> Box<BusValue>;
 }
 mopafy!(BusValue);
 
-impl<T: PartialEq + Reflect + 'static + Debug + ToPon + Clone> BusValue for T {
+impl<T: PartialEq + Reflect + 'static + Debug + Clone> BusValue for T {
     fn bus_value_equals(&self, other: &Box<BusValue>) -> bool {
         match (**other).downcast_ref::<T>() {
             Some(v) => v == self,

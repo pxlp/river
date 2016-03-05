@@ -81,7 +81,7 @@ pub struct Document {
     entities: HashMap<EntityId, Entity>,
     entity_ids_by_name: HashMap<String, EntityId>,
     pub resources: HashMap<String, Box<Any>>,
-    runtime: Rc<PonRuntime>,
+    pub runtime: Rc<PonRuntime>,
     pub bus: Bus,
     property_expressions: HashMap<PropRef, Pon>,
     this_cycle_changes: CycleChanges

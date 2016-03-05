@@ -1,6 +1,7 @@
 
 use bus::*;
 use pon::*;
+use document::CycleChanges;
 
 pub struct Topic {
     invalidated: Vec<PropRef>
@@ -11,16 +12,20 @@ impl Topic {
             invalidated: Vec::new()
         }
     }
-    pub fn invalidated<F: Fn(&Bus, &PropRef) -> bool>(&mut self, bus: &Bus, filter: F) -> Vec<PropRef> {
-        for c in &bus.invalidations_log {
+    pub fn invalidated<F: Fn(&Bus, &PropRef) -> bool>(&mut self, bus: &Bus, cycle_changes: &CycleChanges, filter: F) -> Vec<PropRef> {
+        println!("Topic INV");
+        for c in &cycle_changes.invalidations_log {
+            println!("Topic INV {:?}", c);
             for i in &c.added {
+                println!("Topic INV TEST {:?}", i);
                 if filter(bus, i) {
+                    println!("Topic INV TEST PASSED {:?}", i);
                     self.invalidated.push(i.clone());
                 }
             }
         }
         let inv = self.invalidated.clone();
-        for c in &bus.invalidations_log {
+        for c in &cycle_changes.invalidations_log {
             for i in &c.removed {
                 self.invalidated.retain(|x| x != i);
             }
@@ -41,9 +46,13 @@ impl PropertyKeyTopic {
             keys: keys.into_iter().map(|x| x.to_string()).collect()
         }
     }
-    pub fn invalidated(&mut self, bus: &Bus) -> Vec<PropRef> {
+    pub fn invalidated(&mut self, bus: &Bus, cycle_changes: &CycleChanges) -> Vec<PropRef> {
+        println!("PropertyKeyTopic INV");
         let keys = &self.keys;
-        self.topic.invalidated(bus, |bus, pr| keys.contains(&pr.property_key))
+        self.topic.invalidated(bus, cycle_changes, |bus, pr| {
+            println!("{:?} IN {:?} ??????", pr, keys);
+            keys.contains(&pr.property_key)
+        })
     }
 }
 

@@ -57,7 +57,7 @@ pub struct Bus {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum BusError {
-    NoSuchEntry,
+    NoSuchEntry { prop_ref: PropRef },
     EntryOfWrongType
 }
 
@@ -104,7 +104,7 @@ impl Bus {
     pub fn get(&self, key: &PropRef) -> Result<Box<BusValue>, BusError> {
         match self.entries.get(key) {
             Some(val) => Ok((*val.construct)(self)),
-            None => Err(BusError::NoSuchEntry)
+            None => Err(BusError::NoSuchEntry { prop_ref: key.clone() })
         }
     }
     pub fn get_typed<T: BusValue>(&self, key: &PropRef) -> Result<T, BusError> {

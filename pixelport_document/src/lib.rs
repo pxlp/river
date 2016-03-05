@@ -31,6 +31,7 @@ pub use selector::*;
 pub use selection::*;
 pub use entity_match::*;
 pub use bus::*;
+pub use topic::*;
 use std::hash::Hasher;
 use std::hash::Hash;
 

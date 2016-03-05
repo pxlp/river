@@ -3,20 +3,18 @@ use bus::*;
 use pon::*;
 
 pub struct Topic {
-    invalidated: Vec<PropRef>,
-    filter: Box<Fn(&Bus, &PropRef) -> bool>
+    invalidated: Vec<PropRef>
 }
 impl Topic {
-    pub fn new(filter: Box<Fn(&Bus, &PropRef) -> bool>) -> Topic {
+    pub fn new() -> Topic {
         Topic {
-            invalidated: Vec::new(),
-            filter: filter
+            invalidated: Vec::new()
         }
     }
-    pub fn consume_log(&mut self, bus: &Bus) -> Vec<PropRef> {
+    pub fn invalidated<F: Fn(&Bus, &PropRef) -> bool>(&mut self, bus: &Bus, filter: F) -> Vec<PropRef> {
         for c in &bus.invalidations_log {
             for i in &c.added {
-                if (*self.filter)(bus, i) {
+                if filter(bus, i) {
                     self.invalidated.push(i.clone());
                 }
             }
@@ -28,6 +26,24 @@ impl Topic {
             }
         }
         inv
+    }
+}
+
+pub struct PropertyKeyTopic {
+    topic: Topic,
+    keys: Vec<String>
+}
+
+impl PropertyKeyTopic {
+    pub fn new(keys: Vec<&str>) -> PropertyKeyTopic {
+        PropertyKeyTopic {
+            topic: Topic::new(),
+            keys: keys.into_iter().map(|x| x.to_string()).collect()
+        }
+    }
+    pub fn invalidated(&mut self, bus: &Bus) -> Vec<PropRef> {
+        let keys = &self.keys;
+        self.topic.invalidated(bus, |bus, pr| keys.contains(&pr.property_key))
     }
 }
 

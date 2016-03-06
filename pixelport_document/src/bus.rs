@@ -6,6 +6,7 @@ use mopa;
 use pon::{PropRef};
 use pon_runtime::PonRuntimeErr;
 use inverse_dependencies_counter::*;
+use std::cell::RefCell;
 
 use std::fmt::Debug;
 pub trait BusValue: mopa::Any + Debug {
@@ -34,7 +35,7 @@ impl<T: PartialEq + Reflect + 'static + Debug + Clone> BusValue for T {
 
 impl Clone for Box<BusValue> {
     fn clone(&self) -> Box<BusValue> {
-        self.bus_value_clone()
+        (*self).bus_value_clone()
     }
 }
 impl PartialEq for Box<BusValue> {
@@ -59,7 +60,8 @@ pub struct InvalidatedChange {
 pub struct Bus {
     entries: HashMap<PropRef, BusEntry>,
     pub invalidations_log: Vec<InvalidatedChange>,
-    inv_dep_counter: InverseDependenciesCounter<PropRef>
+    inv_dep_counter: InverseDependenciesCounter<PropRef>,
+    cache: RefCell<HashMap<PropRef, Result<Box<BusValue>, BusError>>>
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -84,7 +86,8 @@ impl Bus {
         Bus {
             entries: HashMap::new(),
             invalidations_log: Vec::new(),
-            inv_dep_counter: InverseDependenciesCounter::new()
+            inv_dep_counter: InverseDependenciesCounter::new(),
+            cache: RefCell::new(HashMap::new())
         }
     }
     pub fn set(&mut self, key: &PropRef, dependencies: Vec<PropRef>, volatile: bool, construct: Box<ValueConstructor>) {
@@ -122,8 +125,21 @@ impl Bus {
         }
     }
     pub fn get(&self, key: &PropRef) -> Result<Box<BusValue>, BusError> {
+        if let Some(v) = self.cache.borrow().get(key) {
+            return match v {
+                &Ok(ref v) => Ok((**v).bus_value_clone()),
+                &Err(ref err) => Err(err.clone())
+            }
+        }
         match self.entries.get(key) {
-            Some(val) => (*val.construct)(self),
+            Some(val) => {
+                let v = (*val.construct)(self);
+                self.cache.borrow_mut().insert(key.clone(), match &v {
+                    &Ok(ref v) => Ok((**v).bus_value_clone()),
+                    &Err(ref err) => Err(err.clone())
+                });
+                v
+            },
             None => Err(BusError::NoSuchEntry { prop_ref: key.clone() })
         }
     }
@@ -147,5 +163,8 @@ impl Bus {
     }
     pub fn iter<'a>(&'a self) -> Box<Iterator<Item=&'a PropRef> + 'a> {
         Box::new(self.entries.keys())
+    }
+    pub fn clear_cache(&self) {
+        self.cache.borrow_mut().clear();
     }
 }

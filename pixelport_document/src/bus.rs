@@ -11,6 +11,7 @@ use std::fmt::Debug;
 pub trait BusValue: mopa::Any + Debug {
     fn bus_value_equals(&self, other: &Box<BusValue>) -> bool;
     fn bus_value_clone(&self) -> Box<BusValue>;
+    fn bus_value_type_name(&self) -> &str;
 }
 mopafy!(BusValue);
 
@@ -23,6 +24,11 @@ impl<T: PartialEq + Reflect + 'static + Debug + Clone> BusValue for T {
     }
     fn bus_value_clone(&self) -> Box<BusValue> {
         Box::new(self.clone())
+    }
+    fn bus_value_type_name(&self) -> &str {
+        unsafe {
+            ::std::intrinsics::type_name::<T>()
+        }
     }
 }
 
@@ -59,7 +65,7 @@ pub struct Bus {
 #[derive(PartialEq, Debug, Clone)]
 pub enum BusError {
     NoSuchEntry { prop_ref: PropRef },
-    EntryOfWrongType,
+    EntryOfWrongType { expected: String, found: String, value: String },
     PonTranslateError { err: PonRuntimeErr, prop_ref: PropRef },
 }
 impl ToString for BusError {
@@ -124,7 +130,12 @@ impl Bus {
     pub fn get_typed<T: BusValue>(&self, key: &PropRef) -> Result<T, BusError> {
         match try!(self.get(key)).downcast::<T>() {
             Ok(box v) => Ok(v),
-            Err(_) => Err(BusError::EntryOfWrongType)
+            Err(v) => {
+                let expected_type_name = unsafe {
+                    ::std::intrinsics::type_name::<T>()
+                };
+                Err(BusError::EntryOfWrongType { expected: expected_type_name.to_string(), found: (*v).bus_value_type_name().to_string(), value: format!("{:?}", v) })
+            }
         }
     }
     pub fn remove(&mut self, key: &PropRef) {
@@ -137,23 +148,4 @@ impl Bus {
     pub fn iter<'a>(&'a self) -> Box<Iterator<Item=&'a PropRef> + 'a> {
         Box::new(self.entries.keys())
     }
-}
-
-#[test]
-fn test() {
-    // let mut bus: Bus<String> = Bus::new();
-    //
-    // #[derive(PartialEq, Debug, Clone)]
-    // struct Uniforms {
-    //     bones: Vec<i32>
-    // }
-    // bus.set(&"uniforms".to_string(), vec!["bones".to_string()], true, Box::new(|bus| {
-    //     Box::new(Uniforms { bones: bus.get_typed::<Vec<i32>>(&"bones".to_string()).expect("No bones?") })
-    // }));
-    //
-    // bus.set(&"bones".to_string(), Vec::new(), false, Box::new(|bus| Box::new(vec![5, 3, 10, 3])));
-    //
-    // let uniforms = bus.get_typed::<Uniforms>(&"uniforms".to_string()).expect("No uniform?");
-    // assert_eq!(uniforms, Uniforms { bones: vec![5, 3, 10, 3] });
-    // //assert_eq!(bus.invalidations_log, vec![ChangedNonZero { added: Vec::new(), removed: Vec::new() }]);
 }

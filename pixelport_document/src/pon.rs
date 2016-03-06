@@ -13,7 +13,6 @@ use std::hash::Hash;
 use std::cmp::Eq;
 use cgmath::{Vector2, Vector3, Vector4, Matrix4};
 
-
 pub fn selector_from_string(string: &str) -> Result<Selector, PonParseError> {
     pon_peg::selector(string)
 }

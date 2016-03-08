@@ -4,7 +4,7 @@ extern crate pixelport_document;
 use pixelport_document::*;
 
 fn test_doc() -> (EntityId, EntityId, EntityId, EntityId, EntityId, EntityId, Document) {
-    let doc = Document::from_string(PonRuntime::new(), r#"
+    let doc = Document::from_string(PonTranslater::new(), r#"
         <Root>
             <Entity name="a">
                 <Entity name="b" x="5">

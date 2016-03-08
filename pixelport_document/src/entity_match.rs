@@ -39,11 +39,11 @@ impl EntityMatch {
                 _ => false
             },
             &EntityMatch::PropertyValueEquals { ref property, box ref value } => match document.get_property_raw(entity_id, property) {
-                Ok(val) => (*val).bus_value_equals(&document.runtime.translate_raw(value, &document.bus).unwrap()),
+                Ok(val) => (*val).bus_value_equals(&document.translater.translate_raw(value, &document.bus).unwrap()),
                 Err(_) => false
             },
             &EntityMatch::PropertyValueNotEquals { ref property, box ref value } => match document.get_property_raw(entity_id, property) {
-                Ok(val) => !(*val).bus_value_equals(&document.runtime.translate_raw(value, &document.bus).unwrap()),
+                Ok(val) => !(*val).bus_value_equals(&document.translater.translate_raw(value, &document.bus).unwrap()),
                 Err(_) => true
             },
             &EntityMatch::PropertyExists(ref property) => document.has_property(entity_id, property),

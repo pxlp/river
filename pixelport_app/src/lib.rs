@@ -80,32 +80,32 @@ impl App {
         let mut layout = pixelport_layout::LayoutSubSystem::new();
         let mut models = pixelport_models::Models::new(opts.root_path.clone());
 
-        let mut runtime = PonRuntime::new();
-        pixelport_util::pon_util(&mut runtime);
-        pixelport_bounding::pon_bounding(&mut runtime);
-        pixelport_models::pon_models(&mut runtime);
+        let mut translater = PonTranslater::new();
+        pixelport_util::pon_util(&mut translater);
+        pixelport_bounding::pon_bounding(&mut translater);
+        pixelport_models::pon_models(&mut translater);
         pixelport_models::init_logging();
-        subdoc.on_init(&mut runtime);
-        template.on_init(&mut runtime);
-        animation.on_init(&mut runtime);
-        viewport.on_init(&mut runtime);
-        picking.on_init(&mut runtime);
-        culling.on_init(&mut runtime);
-        layout.on_init(&mut runtime);
+        subdoc.on_init(&mut translater);
+        template.on_init(&mut translater);
+        animation.on_init(&mut translater);
+        viewport.on_init(&mut translater);
+        picking.on_init(&mut translater);
+        culling.on_init(&mut translater);
+        layout.on_init(&mut translater);
 
         let start_time = match &opts.time_progression {
             &TimeProgression::Real => time::get_time(),
             &TimeProgression::Fixed { .. } => Timespec::new(0, 0)
         };
         let start_time_inner = start_time.clone();
-        runtime.register_function("time", move |_, _, _| {
+        translater.register_function("time", move |_, _, _| {
             let t: f32 = (time::get_time() - start_time_inner).num_milliseconds() as f32 / 1000.0;
             Ok(Box::new(t))
         }, "time");
 
         let mut document = match &opts.document {
-            &DocumentDescription::Empty => Document::new_with_root(runtime),
-            &DocumentDescription::FromFile(ref path) => Document::from_file(runtime, path).unwrap()
+            &DocumentDescription::Empty => Document::new_with_root(translater),
+            &DocumentDescription::FromFile(ref path) => Document::from_file(translater, path).unwrap()
         };
 
         viewport.set_doc(&mut document);

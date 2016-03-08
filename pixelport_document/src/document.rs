@@ -1,6 +1,6 @@
 use xml;
 use pon::*;
-use pon_runtime::*;
+use pon_translater::*;
 use bus::*;
 
 use std::fs::File;
@@ -10,8 +10,6 @@ use std::collections::hash_map::Keys;
 use std::path::Path;
 use std::io::Write;
 use std::any::Any;
-use std::marker::Reflect;
-use std::borrow::Cow;
 use std::fmt;
 use std::rc::Rc;
 
@@ -79,7 +77,7 @@ pub struct Document {
     entities: HashMap<EntityId, Entity>,
     entity_ids_by_name: HashMap<String, EntityId>,
     pub resources: HashMap<String, Box<Any>>,
-    pub runtime: Rc<PonRuntime>,
+    pub translater: Rc<PonTranslater>,
     pub bus: Bus,
     property_expressions: HashMap<PropRef, Pon>,
     this_cycle_changes: CycleChanges
@@ -92,21 +90,21 @@ impl From<BusError> for DocError {
 }
 
 impl Document {
-    pub fn new(runtime: PonRuntime) -> Document {
+    pub fn new(translater: PonTranslater) -> Document {
         Document {
             id_counter: 0,
             root: None,
             entities: HashMap::new(),
             entity_ids_by_name: HashMap::new(),
             resources: HashMap::new(),
-            runtime: Rc::new(runtime),
+            translater: Rc::new(translater),
             bus: Bus::new(),
             property_expressions: HashMap::new(),
             this_cycle_changes: CycleChanges::new(),
         }
     }
-    pub fn new_with_root(runtime: PonRuntime) -> Document {
-        let mut doc = Document::new(runtime);
+    pub fn new_with_root(translater: PonTranslater) -> Document {
+        let mut doc = Document::new(translater);
         doc.append_entity(None, None, "Pml", None).unwrap();
         doc
     }
@@ -162,7 +160,7 @@ impl Document {
         try!(self.resolve_pon_dependencies(entity_id, &mut expression));
         let mut dependencies = vec![];
         expression.build_dependencies_array(&mut dependencies);
-        let rt = self.runtime.clone();
+        let rt = self.translater.clone();
         self.property_expressions.insert(prop_ref.clone(), expression.clone());
         self.bus.set(&prop_ref.clone(), dependencies, volatile, Box::new(move |bus| {
             match rt.translate_raw(&expression, bus) {
@@ -311,8 +309,8 @@ impl Document {
         Ok(String::from_utf8(buff).unwrap())
     }
 
-    pub fn from_file(runtime: PonRuntime, path: &Path) -> Result<Document, DocError> {
-        let mut doc = Document::new(runtime);
+    pub fn from_file(translater: PonTranslater, path: &Path) -> Result<Document, DocError> {
+        let mut doc = Document::new(translater);
         let mut warnings = vec![];
         try!(doc.append_from_event_reader(&mut vec![], event_reader_from_file(path).into_iter(), &mut warnings));
         if warnings.len() > 0 {
@@ -323,8 +321,8 @@ impl Document {
         }
         Ok(doc)
     }
-    pub fn from_string(runtime: PonRuntime, string: &str) -> Result<Document, DocError> {
-        let mut doc = Document::new(runtime);
+    pub fn from_string(translater: PonTranslater, string: &str) -> Result<Document, DocError> {
+        let mut doc = Document::new(translater);
         let parser = EventReader::from_str(string);
         let mut warnings = vec![];
         try!(doc.append_from_event_reader(&mut vec![], parser.into_iter(), &mut warnings));

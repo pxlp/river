@@ -4,7 +4,7 @@ use std::mem;
 use std::marker::Reflect;
 use mopa;
 use pon::{PropRef};
-use pon_runtime::PonRuntimeErr;
+use pon_translater::PonTranslaterErr;
 use inverse_dependencies_counter::*;
 use std::cell::RefCell;
 
@@ -70,7 +70,7 @@ pub struct Bus {
 pub enum BusError {
     NoSuchEntry { prop_ref: PropRef },
     EntryOfWrongType { expected: String, found: String, value: String },
-    PonTranslateError { err: PonRuntimeErr, prop_ref: PropRef },
+    PonTranslateError { err: PonTranslaterErr, prop_ref: PropRef },
     NoConstructedYet
 }
 impl ToString for BusError {

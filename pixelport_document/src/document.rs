@@ -15,6 +15,7 @@ use std::rc::Rc;
 
 use xml::reader::EventReader;
 use std::mem;
+use std::borrow::Cow;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum DocError {
@@ -179,10 +180,10 @@ impl Document {
     pub fn get_property_raw(&self, entity_id: EntityId, property_key: &str) -> Result<Box<BusValue>, BusError> {
         self.bus.get(&PropRef::new(entity_id, property_key))
     }
-    pub fn get_property_expression(&self, entity_id: EntityId, property_key: &str) -> Result<&Pon, DocError> {
-        match self.property_expressions.get(&PropRef::new(entity_id, property_key)) {
+    pub fn get_property_expression(&self, prop_ref: &PropRef) -> Result<&Pon, DocError> {
+        match self.property_expressions.get(prop_ref) {
             Some(v) => Ok(v),
-            None => Err(DocError::NoSuchProperty { prop_ref: PropRef::new(entity_id, property_key) })
+            None => Err(DocError::NoSuchProperty { prop_ref: prop_ref.clone() })
         }
     }
     pub fn has_property(&self, entity_id: EntityId, property_key: &str) -> bool {
@@ -433,34 +434,36 @@ impl Document {
     }
 
     fn entity_to_xml<T: Write>(&self, entity_id: EntityId, writer: &mut xml::writer::EventWriter<T>) {
-        unimplemented!();
-        // let entity = self.entities.get(&entity_id).unwrap();
-        // let type_name = xml::name::Name::local(&entity.type_name);
-        // let props = self.properties.get_properties_for_entity(entity_id);
-        // let mut attrs: Vec<xml::attribute::OwnedAttribute> = props.iter().filter_map(|prop_ref| {
-        //     Some(xml::attribute::OwnedAttribute {
-        //         name: xml::name::OwnedName::local(prop_ref.property_key.to_string()),
-        //         value: self.properties.get_property_expression(prop_ref).unwrap().to_string()
-        //     })
-        // }).collect();
-        // if let &Some(ref name) = &entity.name {
-        //     attrs.push(xml::attribute::OwnedAttribute {
-        //         name: xml::name::OwnedName::local("name"),
-        //         value: name.to_string()
-        //     });
-        // }
-        // attrs.sort_by(|a, b| a.name.local_name.cmp(&b.name.local_name) );
-        // writer.write(xml::writer::events::XmlEvent::StartElement {
-        //     name: type_name.clone(),
-        //     attributes: attrs.iter().map(|x| x.borrow()).collect(),
-        //     namespace: Cow::Owned(xml::namespace::Namespace::empty())
-        // }).unwrap();
-        // for e in &entity.children_ids {
-        //     self.entity_to_xml(*e, writer);
-        // }
-        // writer.write(xml::writer::events::XmlEvent::EndElement {
-        //     name: Some(type_name.clone())
-        // }).unwrap();
+        let entity = self.entities.get(&entity_id).unwrap();
+        let type_name = xml::name::Name::local(&entity.type_name);
+        let props = self.get_properties_for_entity(entity_id);
+        let mut attrs: Vec<xml::attribute::OwnedAttribute> = props.iter().filter_map(|prop_ref| {
+            Some(xml::attribute::OwnedAttribute {
+                name: xml::name::OwnedName::local(prop_ref.property_key.to_string()),
+                value: match self.get_property_expression(prop_ref) {
+                    Ok(v) => v.to_string(),
+                    Err(_) => "Native Code".to_string()
+                }
+            })
+        }).collect();
+        if let &Some(ref name) = &entity.name {
+            attrs.push(xml::attribute::OwnedAttribute {
+                name: xml::name::OwnedName::local("name"),
+                value: name.to_string()
+            });
+        }
+        attrs.sort_by(|a, b| a.name.local_name.cmp(&b.name.local_name) );
+        writer.write(xml::writer::events::XmlEvent::StartElement {
+            name: type_name.clone(),
+            attributes: attrs.iter().map(|x| x.borrow()).collect(),
+            namespace: Cow::Owned(xml::namespace::Namespace::empty())
+        }).unwrap();
+        for e in &entity.children_ids {
+            self.entity_to_xml(*e, writer);
+        }
+        writer.write(xml::writer::events::XmlEvent::EndElement {
+            name: Some(type_name.clone())
+        }).unwrap();
     }
     fn to_xml(&self) -> String {
         let mut buff = vec![];

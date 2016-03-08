@@ -160,7 +160,7 @@ impl PonRuntime {
             &Pon::Number(ref value) => Ok(Box::new(value.clone())),
             &Pon::String(ref value) => Ok(Box::new(value.clone())),
             &Pon::Boolean(ref value) => Ok(Box::new(value.clone())),
-            &Pon::Nil => Err(PonRuntimeErr::Nil)
+            &Pon::Nil => Ok(Box::new(()))
         }
     }
 }
@@ -174,7 +174,6 @@ pub enum PonRuntimeErr {
     RequiredFieldMissing { field: String },
     ValueOfUnexpectedType { expected_type: String, found_value: String },
     EnumValueError { expected_on_of: Vec<String>, found: String },
-    Nil,
     Generic(String)
 }
 impl PonRuntimeErr {
@@ -217,7 +216,6 @@ impl ToString for PonRuntimeErr {
                 format!("function call \"{}\" failed with error: {}", p, error.to_string())
             },
             &PonRuntimeErr::EnumValueError { ref expected_on_of, ref found } => format!("Expected one of {:?}, found {}", expected_on_of, found),
-            &PonRuntimeErr::Nil => "Nil value".to_string(),
             &PonRuntimeErr::Generic(ref value) => format!("{}", value)
         }
     }

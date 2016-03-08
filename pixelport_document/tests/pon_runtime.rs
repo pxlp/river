@@ -123,3 +123,10 @@ fn test_enum() {
     );
     assert_eq!(runtime.translate::<String>(&Pon::from_string("testy 'va'").unwrap(), &mut bus).unwrap(), "what".to_string());
 }
+
+#[test]
+fn test_nil() {
+    let mut bus = Bus::new();
+    let mut runtime = PonRuntime::new();
+    assert_eq!(runtime.translate::<()>(&Pon::from_string("()").unwrap(), &mut bus).unwrap(), ());
+}

@@ -21,7 +21,6 @@ pub mod entity_match;
 mod inverse_dependencies_counter;
 pub mod bus;
 pub mod topic;
-//mod properties;
 
 pub use pon::*;
 #[macro_use]

@@ -97,8 +97,7 @@ class Pixelport extends EventEmitter {
       SubDocStreamCreate: {
         id: opts.id,
         selector: opts.selector,
-        property_regex: opts.property_regex,
-        include_invalidated: !!opts.include_invalidated
+        property_regex: opts.property_regex
       }
     });
     return subDocStream;

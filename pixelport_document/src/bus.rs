@@ -48,7 +48,9 @@ pub type ValueConstructor = Fn(&Bus) -> Result<Box<BusValue>, BusError>;
 
 struct BusEntry {
     construct: Box<ValueConstructor>,
-    volatile: bool
+    volatile: bool,
+    cached: RefCell<Result<Box<BusValue>, BusError>>,
+    cached_until: RefCell<u64>
 }
 
 #[derive(Debug, PartialEq)]
@@ -61,7 +63,7 @@ pub struct Bus {
     entries: HashMap<PropRef, BusEntry>,
     pub invalidations_log: Vec<InvalidatedChange>,
     inv_dep_counter: InverseDependenciesCounter<PropRef>,
-    cache: RefCell<HashMap<PropRef, Result<Box<BusValue>, BusError>>>
+    cycle: u64
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -69,6 +71,7 @@ pub enum BusError {
     NoSuchEntry { prop_ref: PropRef },
     EntryOfWrongType { expected: String, found: String, value: String },
     PonTranslateError { err: PonRuntimeErr, prop_ref: PropRef },
+    NoConstructedYet
 }
 impl ToString for BusError {
     fn to_string(&self) -> String {
@@ -87,7 +90,7 @@ impl Bus {
             entries: HashMap::new(),
             invalidations_log: Vec::new(),
             inv_dep_counter: InverseDependenciesCounter::new(),
-            cache: RefCell::new(HashMap::new())
+            cycle: 1
         }
     }
     pub fn set(&mut self, key: &PropRef, dependencies: Vec<PropRef>, volatile: bool, construct: Box<ValueConstructor>) {
@@ -97,12 +100,15 @@ impl Bus {
                 Entry::Occupied(o) => {
                     let mut e = o.into_mut();
                     e.construct = construct;
+                    *e.cached_until.borrow_mut() = 0;
                     mem::replace(&mut e.volatile, volatile)
                 },
                 Entry::Vacant(v) => {
                     v.insert(BusEntry {
                         construct: construct,
-                        volatile: volatile
+                        volatile: volatile,
+                        cached: RefCell::new(Err(BusError::NoConstructedYet)),
+                        cached_until: RefCell::new(0)
                     });
                     false
                 }
@@ -125,19 +131,20 @@ impl Bus {
         }
     }
     pub fn get(&self, key: &PropRef) -> Result<Box<BusValue>, BusError> {
-        if let Some(v) = self.cache.borrow().get(key) {
-            return match v {
-                &Ok(ref v) => Ok((**v).bus_value_clone()),
-                &Err(ref err) => Err(err.clone())
-            }
-        }
         match self.entries.get(key) {
             Some(val) => {
+                if *val.cached_until.borrow() >= self.cycle {
+                    return match &*val.cached.borrow() {
+                        &Ok(ref v) => Ok((**v).bus_value_clone()),
+                        &Err(ref err) => Err(err.clone())
+                    }
+                }
                 let v = (*val.construct)(self);
-                self.cache.borrow_mut().insert(key.clone(), match &v {
+                *val.cached.borrow_mut() = match &v {
                     &Ok(ref v) => Ok((**v).bus_value_clone()),
                     &Err(ref err) => Err(err.clone())
-                });
+                };
+                *val.cached_until.borrow_mut() = self.cycle;
                 v
             },
             None => Err(BusError::NoSuchEntry { prop_ref: key.clone() })
@@ -164,7 +171,7 @@ impl Bus {
     pub fn iter<'a>(&'a self) -> Box<Iterator<Item=&'a PropRef> + 'a> {
         Box::new(self.entries.keys())
     }
-    pub fn clear_cache(&self) {
-        self.cache.borrow_mut().clear();
+    pub fn clear_cache(&mut self) {
+        self.cycle += 1;
     }
 }

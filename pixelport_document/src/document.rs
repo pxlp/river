@@ -191,8 +191,8 @@ impl Document {
     }
     pub fn close_cycle(&mut self) -> CycleChanges {
         let mut cycle_changes = mem::replace(&mut self.this_cycle_changes, CycleChanges::new());
-        cycle_changes.invalidations_log = mem::replace(&mut self.bus.invalidations_log, Vec::new());
         self.bus.clear_cache();
+        cycle_changes.invalidations_log = mem::replace(&mut self.bus.invalidations_log, Vec::new());
         return cycle_changes;
     }
     pub fn get_properties(&self, entity_id: EntityId) -> Result<Vec<PropRef>, DocError> {

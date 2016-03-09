@@ -1,7 +1,6 @@
 
 use bus::*;
 use pon::*;
-use document::CycleChanges;
 use std::marker::PhantomData;
 use std::marker::Reflect;
 
@@ -15,11 +14,11 @@ impl Topic {
             invalidated: Vec::new()
         }
     }
-    pub fn invalidated<F: Fn(&Bus, &PropRef) -> bool>(&mut self, bus: &Bus, cycle_changes: &CycleChanges, filter: F) -> Vec<PropRef> {
+    pub fn invalidated<F: Fn(&PropRef) -> bool>(&mut self, invalidations_log: &Vec<InvalidatedChange>, filter: F) -> Vec<PropRef> {
     let mut inv = self.invalidated.clone();
-        for c in &cycle_changes.invalidations_log {
+        for c in invalidations_log {
             for i in &c.added {
-                if filter(bus, i) {
+                if filter(i) {
                     self.invalidated.push(i.clone());
                     inv.push(i.clone());
                 }
@@ -47,9 +46,9 @@ impl PropertyKeyTopic {
             keys: keys.into_iter().map(|x| x.to_string()).collect()
         }
     }
-    pub fn invalidated(&mut self, bus: &Bus, cycle_changes: &CycleChanges) -> Vec<PropRef> {
+    pub fn invalidated(&mut self, invalidations_log: &Vec<InvalidatedChange>) -> Vec<PropRef> {
         let keys = &self.keys;
-        self.topic.invalidated(bus, cycle_changes, |bus, pr| {
+        self.topic.invalidated(invalidations_log, |pr| {
             keys.contains(&pr.property_key)
         })
     }
@@ -69,8 +68,8 @@ impl<T: BusValue> TypeTopic<T> {
             phantom: PhantomData
         }
     }
-    pub fn invalidated(&mut self, bus: &Bus, cycle_changes: &CycleChanges) -> Vec<PropRef> {
-        self.topic.invalidated(bus, cycle_changes, |bus, pr| {
+    pub fn invalidated(&mut self, bus: &Bus, invalidations_log: &Vec<InvalidatedChange>) -> Vec<PropRef> {
+        self.topic.invalidated(invalidations_log, |pr| {
             match bus.get(pr) {
                 Ok(v) => v.is::<T>(),
                 Err(_) => false

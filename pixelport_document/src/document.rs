@@ -163,7 +163,7 @@ impl Document {
         expression.build_dependencies_array(&mut dependencies);
         let rt = self.translater.clone();
         self.property_expressions.insert(prop_ref.clone(), expression.clone());
-        self.bus.set(&prop_ref.clone(), dependencies, volatile, Box::new(move |bus| {
+        self.bus.set_constructor(&prop_ref.clone(), dependencies, volatile, Box::new(move |bus| {
             match rt.translate_raw(&expression, bus) {
                 Ok(v) => Ok(v),
                 Err(err) => {

@@ -8,7 +8,7 @@ use std::mem;
 fn test_type_topic() {
     let mut bus: Bus = Bus::new();
 
-    bus.set(&PropRef::new(5, "x"), Vec::new(), false, Box::new(|bus| Ok(Box::new(5)) ));
+    bus.set_constructor(&PropRef::new(5, "x"), Vec::new(), false, Box::new(|bus| Ok(Box::new(5)) ));
     let mut topic: TypeTopic<i32> = TypeTopic::new();
     let log = mem::replace(&mut bus.invalidations_log, Vec::new());
     let inv = topic.invalidated(&bus, &log);
@@ -19,7 +19,7 @@ fn test_type_topic() {
 fn test_type_topic_volatile() {
     let mut bus: Bus = Bus::new();
 
-    bus.set(&PropRef::new(5, "x"), Vec::new(), true, Box::new(|bus| Ok(Box::new(5)) ));
+    bus.set_constructor(&PropRef::new(5, "x"), Vec::new(), true, Box::new(|bus| Ok(Box::new(5)) ));
     let mut topic: TypeTopic<i32> = TypeTopic::new();
     let log = mem::replace(&mut bus.invalidations_log, Vec::new());
     let inv = topic.invalidated(&bus, &log);

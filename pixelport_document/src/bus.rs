@@ -59,11 +59,36 @@ pub struct InvalidatedChange {
     pub removed: Vec<PropRef>,
 }
 
+#[derive(Debug)]
+pub struct BusStats {
+    pub n_constructs: i32,
+    pub n_gets: i32,
+    pub n_cache_hits: i32,
+    pub n_volatile_sets: i32,
+    pub n_involatile_sets: i32,
+    pub n_adds: i32,
+    pub n_removes: i32,
+}
+impl BusStats {
+    pub fn new() -> BusStats {
+        BusStats {
+            n_constructs: 0,
+            n_gets: 0,
+            n_cache_hits: 0,
+            n_volatile_sets: 0,
+            n_involatile_sets: 0,
+            n_adds: 0,
+            n_removes: 0,
+        }
+    }
+}
+
 pub struct Bus {
     entries: HashMap<PropRef, BusEntry>,
     pub invalidations_log: Vec<InvalidatedChange>,
     inv_dep_counter: InverseDependenciesCounter<PropRef>,
-    cycle: u64
+    cycle: u64,
+    pub stats: RefCell<BusStats>
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -90,7 +115,8 @@ impl Bus {
             entries: HashMap::new(),
             invalidations_log: Vec::new(),
             inv_dep_counter: InverseDependenciesCounter::new(),
-            cycle: 1
+            cycle: 1,
+            stats: RefCell::new(BusStats::new())
         }
     }
     pub fn set(&mut self, key: &PropRef, dependencies: Vec<PropRef>, volatile: bool, construct: Box<ValueConstructor>) {
@@ -115,10 +141,12 @@ impl Bus {
             }
         };
         if volatile {
+            self.stats.borrow_mut().n_volatile_sets += 1;
             if !was_volatile {
                 self.inv_dep_counter.change_counter_recursively(key.clone(), 1, &mut change);
             }
         } else {
+            self.stats.borrow_mut().n_involatile_sets += 1;
             if was_volatile {
                 self.inv_dep_counter.change_counter_recursively(key.clone(), -1, &mut change);
             } else {
@@ -127,18 +155,24 @@ impl Bus {
             }
         }
         if change.added.len() > 0 || change.removed.len() > 0 {
+            self.stats.borrow_mut().n_adds += change.added.len() as i32;
+            self.stats.borrow_mut().n_removes += change.removed.len() as i32;
             self.invalidations_log.push(InvalidatedChange { added: change.added, removed: change.removed });
         }
     }
     pub fn get(&self, key: &PropRef) -> Result<Box<BusValue>, BusError> {
+        let mut stats = self.stats.borrow_mut();
+        stats.n_gets += 1;
         match self.entries.get(key) {
             Some(val) => {
                 if *val.cached_until.borrow() >= self.cycle {
+                    stats.n_cache_hits += 1;
                     return match &*val.cached.borrow() {
                         &Ok(ref v) => Ok((**v).bus_value_clone()),
                         &Err(ref err) => Err(err.clone())
                     }
                 }
+                stats.n_constructs += 1;
                 let v = (*val.construct)(self);
                 *val.cached.borrow_mut() = match &v {
                     &Ok(ref v) => Ok((**v).bus_value_clone()),
@@ -173,5 +207,6 @@ impl Bus {
     }
     pub fn clear_cache(&mut self) {
         self.cycle += 1;
+        self.stats = RefCell::new(BusStats::new());
     }
 }

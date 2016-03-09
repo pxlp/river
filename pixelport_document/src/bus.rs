@@ -46,7 +46,7 @@ impl PartialEq for Box<BusValue> {
 
 pub type ValueConstructor = Fn(&Bus, &PonTranslater) -> Result<Box<BusValue>, BusError>;
 
-enum BusEntyValue {
+pub enum BusEntryValue {
     Constructor {
         constructor: Box<ValueConstructor>,
         cached: RefCell<Option<Box<BusValue>>>,
@@ -62,16 +62,16 @@ enum BusEntyValue {
         cached_until: RefCell<u64>
     }
 }
-impl BusEntyValue {
-    fn is_same(&self, other: &BusEntyValue) -> bool {
+impl BusEntryValue {
+    fn is_same(&self, other: &BusEntryValue) -> bool {
         match other {
-            &BusEntyValue::Constructor { .. } => false,
-            &BusEntyValue::Value(ref v1) => match self {
-                &BusEntyValue::Value(ref v2) => (**v1).bus_value_equals(&*v2),
+            &BusEntryValue::Constructor { .. } => false,
+            &BusEntryValue::Value(ref v1) => match self {
+                &BusEntryValue::Value(ref v2) => (**v1).bus_value_equals(&*v2),
                 _ => false
             },
-            &BusEntyValue::Pon { expression: ref e1, .. } => match self {
-                &BusEntyValue::Pon { expression: ref e2, .. } => e1 == e2,
+            &BusEntryValue::Pon { expression: ref e1, .. } => match self {
+                &BusEntryValue::Pon { expression: ref e2, .. } => e1 == e2,
                 _ => false
             },
         }
@@ -79,7 +79,7 @@ impl BusEntyValue {
 }
 
 struct BusEntry {
-    value: BusEntyValue,
+    value: BusEntryValue,
     volatile: bool
 }
 
@@ -163,11 +163,11 @@ impl Bus {
     }
     pub fn set_value(&mut self, key: &PropRef, volatile: bool, value: Box<BusValue>) {
         self.stats.borrow_mut().n_set_value += 1;
-        self.set(key, Vec::new(), volatile, BusEntyValue::Value(value));
+        self.set(key, Vec::new(), volatile, BusEntryValue::Value(value));
     }
     pub fn set_constructor(&mut self, key: &PropRef, dependencies: Vec<PropRef>, volatile: bool, construct: Box<ValueConstructor>) {
         self.stats.borrow_mut().n_set_constructor += 1;
-        self.set(key, dependencies, volatile, BusEntyValue::Constructor {
+        self.set(key, dependencies, volatile, BusEntryValue::Constructor {
             constructor: construct,
             cached: RefCell::new(None),
             cached_until: RefCell::new(0),
@@ -177,13 +177,13 @@ impl Bus {
         let mut dependencies = vec![];
         expression.build_dependencies_array(&mut dependencies);
         self.stats.borrow_mut().n_set_pon += 1;
-        self.set(key, dependencies, volatile, BusEntyValue::Pon {
+        self.set(key, dependencies, volatile, BusEntryValue::Pon {
             expression: expression,
             cached: RefCell::new(None),
             cached_until: RefCell::new(0),
         });
     }
-    fn set(&mut self, key: &PropRef, dependencies: Vec<PropRef>, volatile: bool, value: BusEntyValue) {
+    fn set(&mut self, key: &PropRef, dependencies: Vec<PropRef>, volatile: bool, value: BusEntryValue) {
         let mut change = self.inv_dep_counter.set_dependencies(key, dependencies);
         let was_volatile = {
             match self.entries.entry(key.clone()) {
@@ -231,7 +231,7 @@ impl Bus {
         match self.entries.get(key) {
             Some(entry) => {
                 match &entry.value {
-                    &BusEntyValue::Constructor { ref cached, ref cached_until, ref constructor,  } => {
+                    &BusEntryValue::Constructor { ref cached, ref cached_until, ref constructor,  } => {
                         if *cached_until.borrow() >= self.cycle {
                             self.stats.borrow_mut().n_cache_hits += 1;
                             if let &Some(ref v) = &*cached.borrow() {
@@ -244,8 +244,8 @@ impl Bus {
                         *cached_until.borrow_mut() = self.cycle;
                         Ok(v)
                     },
-                    &BusEntyValue::Value(ref value) => Ok((**value).bus_value_clone()),
-                    &BusEntyValue::Pon { ref cached, ref cached_until, ref expression,  } => {
+                    &BusEntryValue::Value(ref value) => Ok((**value).bus_value_clone()),
+                    &BusEntryValue::Pon { ref cached, ref cached_until, ref expression,  } => {
                         if *cached_until.borrow() >= self.cycle {
                             self.stats.borrow_mut().n_cache_hits += 1;
                             if let &Some(ref v) = &*cached.borrow() {
@@ -272,6 +272,12 @@ impl Bus {
                 };
                 Err(BusError::EntryOfWrongType { expected: expected_type_name.to_string(), found: (*v).bus_value_type_name().to_string(), value: format!("{:?}", v) })
             }
+        }
+    }
+    pub fn get_entry(&self, key: &PropRef) -> Option<&BusEntryValue> {
+        match self.entries.get(key) {
+            Some(v) => Some(&v.value),
+            None => None
         }
     }
     pub fn remove(&mut self, key: &PropRef) {

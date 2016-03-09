@@ -11,7 +11,6 @@ use std::path::Path;
 use std::io::Write;
 use std::any::Any;
 use std::fmt;
-use std::rc::Rc;
 
 use xml::reader::EventReader;
 use std::mem;
@@ -23,7 +22,8 @@ pub enum DocError {
     NoSuchProperty { prop_ref: PropRef },
     NoSuchEntity(EntityId),
     CantFindEntityByName(String),
-    InvalidParent
+    InvalidParent,
+    NotAPon
 }
 impl ToString for DocError {
     fn to_string(&self) -> String {
@@ -80,7 +80,6 @@ pub struct Document {
     pub resources: HashMap<String, Box<Any>>,
     pub translater: PonTranslater,
     pub bus: Bus,
-    property_expressions: HashMap<PropRef, Pon>,
     this_cycle_changes: CycleChanges
 }
 
@@ -100,7 +99,6 @@ impl Document {
             resources: HashMap::new(),
             translater: translater,
             bus: Bus::new(),
-            property_expressions: HashMap::new(),
             this_cycle_changes: CycleChanges::new(),
         }
     }
@@ -159,7 +157,6 @@ impl Document {
     pub fn set_property(&mut self, entity_id: EntityId, property_key: &str, mut expression: Pon, volatile: bool) -> Result<(), DocError> {
         let prop_ref = PropRef::new(entity_id, property_key);
         try!(self.resolve_pon_dependencies(entity_id, &mut expression));
-        self.property_expressions.insert(prop_ref.clone(), expression.clone());
         self.bus.set_pon(&prop_ref.clone(), volatile, expression);
         Ok(())
     }
@@ -170,9 +167,10 @@ impl Document {
         self.bus.get(&PropRef::new(entity_id, property_key), &self.translater)
     }
     pub fn get_property_expression(&self, prop_ref: &PropRef) -> Result<&Pon, DocError> {
-        match self.property_expressions.get(prop_ref) {
-            Some(v) => Ok(v),
-            None => Err(DocError::NoSuchProperty { prop_ref: prop_ref.clone() })
+        match self.bus.get_entry(prop_ref) {
+            Some(&BusEntryValue::Pon { ref expression, .. }) => Ok(expression),
+            Some(_) => Err(DocError::NotAPon),
+            None => Err(DocError::NoSuchProperty { prop_ref: prop_ref.clone() }),
         }
     }
     pub fn has_property(&self, entity_id: EntityId, property_key: &str) -> bool {
@@ -337,7 +335,6 @@ impl Document {
         let props = self.get_properties_for_entity(entity_id);
         for pr in props {
             self.bus.remove(&pr);
-            self.property_expressions.remove(&pr);
         }
     }
 

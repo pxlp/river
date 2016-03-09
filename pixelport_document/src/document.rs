@@ -78,7 +78,7 @@ pub struct Document {
     entities: HashMap<EntityId, Entity>,
     entity_ids_by_name: HashMap<String, EntityId>,
     pub resources: HashMap<String, Box<Any>>,
-    pub translater: Rc<PonTranslater>,
+    pub translater: PonTranslater,
     pub bus: Bus,
     property_expressions: HashMap<PropRef, Pon>,
     this_cycle_changes: CycleChanges
@@ -98,7 +98,7 @@ impl Document {
             entities: HashMap::new(),
             entity_ids_by_name: HashMap::new(),
             resources: HashMap::new(),
-            translater: Rc::new(translater),
+            translater: translater,
             bus: Bus::new(),
             property_expressions: HashMap::new(),
             this_cycle_changes: CycleChanges::new(),
@@ -159,26 +159,15 @@ impl Document {
     pub fn set_property(&mut self, entity_id: EntityId, property_key: &str, mut expression: Pon, volatile: bool) -> Result<(), DocError> {
         let prop_ref = PropRef::new(entity_id, property_key);
         try!(self.resolve_pon_dependencies(entity_id, &mut expression));
-        let mut dependencies = vec![];
-        expression.build_dependencies_array(&mut dependencies);
-        let rt = self.translater.clone();
         self.property_expressions.insert(prop_ref.clone(), expression.clone());
-        self.bus.set_constructor(&prop_ref.clone(), dependencies, volatile, Box::new(move |bus| {
-            match rt.translate_raw(&expression, bus) {
-                Ok(v) => Ok(v),
-                Err(err) => {
-                    warn!("Failed to translate pon to value: {}", err.to_string());
-                    Err(BusError::PonTranslateError { err: err, prop_ref: prop_ref.clone() })
-                }
-            }
-        }));
+        self.bus.set_pon(&prop_ref.clone(), volatile, expression);
         Ok(())
     }
     pub fn get_property<T: BusValue>(&self, entity_id: EntityId, property_key: &str) -> Result<T, BusError> {
-        self.bus.get_typed::<T>(&PropRef::new(entity_id, property_key))
+        self.bus.get_typed::<T>(&PropRef::new(entity_id, property_key), &self.translater)
     }
     pub fn get_property_raw(&self, entity_id: EntityId, property_key: &str) -> Result<Box<BusValue>, BusError> {
-        self.bus.get(&PropRef::new(entity_id, property_key))
+        self.bus.get(&PropRef::new(entity_id, property_key), &self.translater)
     }
     pub fn get_property_expression(&self, prop_ref: &PropRef) -> Result<&Pon, DocError> {
         match self.property_expressions.get(prop_ref) {

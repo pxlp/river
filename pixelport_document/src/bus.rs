@@ -3,10 +3,10 @@ use std::collections::hash_map::Entry;
 use std::mem;
 use std::marker::Reflect;
 use mopa;
-use pon::{PropRef};
-use pon_translater::PonTranslaterErr;
 use inverse_dependencies_counter::*;
 use std::cell::RefCell;
+use pon::*;
+use pon_translater::*;
 
 use std::fmt::Debug;
 pub trait BusValue: mopa::Any + Debug {
@@ -44,7 +44,7 @@ impl PartialEq for Box<BusValue> {
     }
 }
 
-pub type ValueConstructor = Fn(&Bus) -> Result<Box<BusValue>, BusError>;
+pub type ValueConstructor = Fn(&Bus, &PonTranslater) -> Result<Box<BusValue>, BusError>;
 
 enum BusEntyValue {
     Constructor {
@@ -52,7 +52,15 @@ enum BusEntyValue {
         cached: RefCell<Option<Box<BusValue>>>,
         cached_until: RefCell<u64>
     },
-    Value(Box<BusValue>)
+    Value(Box<BusValue>),
+
+    // Have the Pon in the bus muddles the bus a bit. We need it though to be able to do inteligent
+    // things with the entries, such as when setting the same value twice it shouldn't do anything.
+    Pon {
+        expression: Pon,
+        cached: RefCell<Option<Box<BusValue>>>,
+        cached_until: RefCell<u64>
+    }
 }
 
 struct BusEntry {
@@ -77,6 +85,7 @@ pub struct BusStats {
     pub n_removes: i32,
     pub n_set_value: i32,
     pub n_set_constructor: i32,
+    pub n_set_pon: i32,
 }
 impl BusStats {
     pub fn new() -> BusStats {
@@ -89,7 +98,8 @@ impl BusStats {
             n_adds: 0,
             n_removes: 0,
             n_set_value: 0,
-            n_set_constructor: 0
+            n_set_constructor: 0,
+            n_set_pon: 0,
         }
     }
 }
@@ -106,13 +116,18 @@ pub struct Bus {
 pub enum BusError {
     NoSuchEntry { prop_ref: PropRef },
     EntryOfWrongType { expected: String, found: String, value: String },
-    PonTranslateError { err: PonTranslaterErr, prop_ref: PropRef }
+    PonTranslateError { err: PonTranslaterErr }
+}
+impl From<PonTranslaterErr> for BusError {
+    fn from(err: PonTranslaterErr) -> BusError {
+        BusError::PonTranslateError { err: err }
+    }
 }
 impl ToString for BusError {
     fn to_string(&self) -> String {
         match self {
-            &BusError::PonTranslateError { ref err, ref prop_ref } =>
-                format!("Pon translate error in {}.{}: {}", prop_ref.entity_id, prop_ref.property_key, err.to_string()),
+            &BusError::PonTranslateError { ref err } =>
+                format!("Pon translate error: {}", err.to_string()),
             _ => format!("{:?}", self)
         }
     }
@@ -137,6 +152,16 @@ impl Bus {
         self.stats.borrow_mut().n_set_constructor += 1;
         self.set(key, dependencies, volatile, BusEntyValue::Constructor {
             constructor: construct,
+            cached: RefCell::new(None),
+            cached_until: RefCell::new(0),
+        });
+    }
+    pub fn set_pon(&mut self, key: &PropRef, volatile: bool, expression: Pon) {
+        let mut dependencies = vec![];
+        expression.build_dependencies_array(&mut dependencies);
+        self.stats.borrow_mut().n_set_pon += 1;
+        self.set(key, dependencies, volatile, BusEntyValue::Pon {
+            expression: expression,
             cached: RefCell::new(None),
             cached_until: RefCell::new(0),
         });
@@ -179,7 +204,7 @@ impl Bus {
             self.invalidations_log.push(InvalidatedChange { added: change.added, removed: change.removed });
         }
     }
-    pub fn get(&self, key: &PropRef) -> Result<Box<BusValue>, BusError> {
+    pub fn get(&self, key: &PropRef, pon_translater: &PonTranslater) -> Result<Box<BusValue>, BusError> {
         self.stats.borrow_mut().n_gets += 1;
         match self.entries.get(key) {
             Some(entry) => {
@@ -192,19 +217,32 @@ impl Bus {
                             }
                         }
                         self.stats.borrow_mut().n_constructs += 1;
-                        let v = try!((*constructor)(self));
+                        let v = try!((*constructor)(self, pon_translater));
                         *cached.borrow_mut() = Some((*v).bus_value_clone());
                         *cached_until.borrow_mut() = self.cycle;
                         Ok(v)
                     },
-                    &BusEntyValue::Value(ref value) => Ok((**value).bus_value_clone())
+                    &BusEntyValue::Value(ref value) => Ok((**value).bus_value_clone()),
+                    &BusEntyValue::Pon { ref cached, ref cached_until, ref expression,  } => {
+                        if *cached_until.borrow() >= self.cycle {
+                            self.stats.borrow_mut().n_cache_hits += 1;
+                            if let &Some(ref v) = &*cached.borrow() {
+                                return Ok((**v).bus_value_clone());
+                            }
+                        }
+                        self.stats.borrow_mut().n_constructs += 1;
+                        let v = try!(pon_translater.translate_raw(expression, self));
+                        *cached.borrow_mut() = Some((*v).bus_value_clone());
+                        *cached_until.borrow_mut() = self.cycle;
+                        Ok(v)
+                    },
                 }
             },
             None => Err(BusError::NoSuchEntry { prop_ref: key.clone() })
         }
     }
-    pub fn get_typed<T: BusValue>(&self, key: &PropRef) -> Result<T, BusError> {
-        match try!(self.get(key)).downcast::<T>() {
+    pub fn get_typed<T: BusValue>(&self, key: &PropRef, pon_translater: &PonTranslater) -> Result<T, BusError> {
+        match try!(self.get(key, pon_translater)).downcast::<T>() {
             Ok(box v) => Ok(v),
             Err(v) => {
                 let expected_type_name = unsafe {

@@ -144,7 +144,7 @@ impl PonTranslater {
                 }
             },
             &Pon::DependencyReference(ref named_prop_ref, Some(ref prop_ref)) => {
-                match bus.get(&prop_ref) {
+                match bus.get(&prop_ref, self) {
                     Ok(val) => Ok(val),
                     Err(err @ BusError::NoSuchEntry { .. }) => Err(PonTranslaterErr::BadDependency { property: named_prop_ref.clone(), error: Box::new(err) }),
                     Err(err) => Err(PonTranslaterErr::BusError(Box::new(err)))

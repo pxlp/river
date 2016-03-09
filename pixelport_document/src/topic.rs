@@ -3,6 +3,7 @@ use bus::*;
 use pon::*;
 use std::marker::PhantomData;
 use std::marker::Reflect;
+use pon_translater::*;
 
 #[derive(Debug)]
 pub struct Topic {
@@ -68,9 +69,9 @@ impl<T: BusValue> TypeTopic<T> {
             phantom: PhantomData
         }
     }
-    pub fn invalidated(&mut self, bus: &Bus, invalidations_log: &Vec<InvalidatedChange>) -> Vec<PropRef> {
+    pub fn invalidated(&mut self, bus: &Bus, translater: &PonTranslater, invalidations_log: &Vec<InvalidatedChange>) -> Vec<PropRef> {
         self.topic.invalidated(invalidations_log, |pr| {
-            match bus.get(pr) {
+            match bus.get(pr, translater) {
                 Ok(v) => v.is::<T>(),
                 Err(_) => false
             }

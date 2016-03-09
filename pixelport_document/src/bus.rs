@@ -62,6 +62,21 @@ enum BusEntyValue {
         cached_until: RefCell<u64>
     }
 }
+impl BusEntyValue {
+    fn is_same(&self, other: &BusEntyValue) -> bool {
+        match other {
+            &BusEntyValue::Constructor { .. } => false,
+            &BusEntyValue::Value(ref v1) => match self {
+                &BusEntyValue::Value(ref v2) => (**v1).bus_value_equals(&*v2),
+                _ => false
+            },
+            &BusEntyValue::Pon { expression: ref e1, .. } => match self {
+                &BusEntyValue::Pon { expression: ref e2, .. } => e1 == e2,
+                _ => false
+            },
+        }
+    }
+}
 
 struct BusEntry {
     value: BusEntyValue,
@@ -86,6 +101,7 @@ pub struct BusStats {
     pub n_set_value: i32,
     pub n_set_constructor: i32,
     pub n_set_pon: i32,
+    pub n_skip_set: i32,
 }
 impl BusStats {
     pub fn new() -> BusStats {
@@ -100,6 +116,7 @@ impl BusStats {
             n_set_value: 0,
             n_set_constructor: 0,
             n_set_pon: 0,
+            n_skip_set: 0,
         }
     }
 }
@@ -172,6 +189,11 @@ impl Bus {
             match self.entries.entry(key.clone()) {
                 Entry::Occupied(o) => {
                     let mut e = o.into_mut();
+                    // Early exit, means we can save the whole inv added removed thing for non-volatile sets
+                    if !volatile && e.value.is_same(&value) {
+                        self.stats.borrow_mut().n_skip_set += 1;
+                        return;
+                    }
                     e.value = value;
                     mem::replace(&mut e.volatile, volatile)
                 },

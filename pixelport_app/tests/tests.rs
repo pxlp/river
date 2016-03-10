@@ -6,10 +6,8 @@ extern crate image;
 extern crate glutin;
 
 use pixelport::*;
-use pixelport_document::*;
 
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::Path;
 use pixelport_resources::*;
 use std::fs;
 
@@ -25,7 +23,7 @@ fn headless_document_opts(filename: &str) -> AppOptions {
             window_size: Some((100, 100))
         },
         port: 0,
-        document: DocumentDescription::Empty,
+        document: DocumentDescription::FromFile(path.to_path_buf()),
         root_path: root_path,
         time_progression: TimeProgression::Fixed { step_ms: 16 },
         min_frame_ms: None

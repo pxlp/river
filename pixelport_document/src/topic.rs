@@ -84,3 +84,20 @@ impl<T: BusValue> TypeTopic<T> {
         })
     }
 }
+
+
+#[derive(Debug)]
+pub struct AllTopic {
+    topic: Topic
+}
+
+impl AllTopic {
+    pub fn new() -> AllTopic {
+        AllTopic {
+            topic: Topic::new()
+        }
+    }
+    pub fn invalidated(&mut self, bus: &Bus, invalidations_log: &Vec<InvalidatedChange>) -> Vec<PropRef> {
+        self.topic.invalidated(bus, invalidations_log, |_| true)
+    }
+}

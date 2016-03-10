@@ -151,12 +151,6 @@ class Pixelport extends EventEmitter {
     });
   }
 
-  viewportRebuildScene() {
-    return this._request({
-      ViewportRebuildScene: []
-    });
-  }
-
   viewportUpdateAllUniforms() {
     return this._request({
       ViewportUpdateAllUniforms: []

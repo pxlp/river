@@ -7,16 +7,22 @@ use pon_translater::*;
 
 #[derive(Debug)]
 pub struct Topic {
-    invalidated: Vec<PropRef>
+    invalidated: Vec<PropRef>,
+    inited: bool
 }
 impl Topic {
     pub fn new() -> Topic {
         Topic {
-            invalidated: Vec::new()
+            invalidated: Vec::new(),
+            inited: false
         }
     }
-    pub fn invalidated<F: Fn(&PropRef) -> bool>(&mut self, invalidations_log: &Vec<InvalidatedChange>, filter: F) -> Vec<PropRef> {
-    let mut inv = self.invalidated.clone();
+    pub fn invalidated<F: Fn(&PropRef) -> bool>(&mut self, bus: &Bus, invalidations_log: &Vec<InvalidatedChange>, filter: F) -> Vec<PropRef> {
+        if !self.inited {
+            self.invalidated = bus.iter_invalidated().filter(|pr| filter(pr)).cloned().collect();
+            self.inited = true;
+        }
+        let mut inv = self.invalidated.clone();
         for c in invalidations_log {
             for i in &c.added {
                 if filter(i) {
@@ -47,9 +53,9 @@ impl PropertyKeyTopic {
             keys: keys.into_iter().map(|x| x.to_string()).collect()
         }
     }
-    pub fn invalidated(&mut self, invalidations_log: &Vec<InvalidatedChange>) -> Vec<PropRef> {
+    pub fn invalidated(&mut self, bus: &Bus, invalidations_log: &Vec<InvalidatedChange>) -> Vec<PropRef> {
         let keys = &self.keys;
-        self.topic.invalidated(invalidations_log, |pr| {
+        self.topic.invalidated(bus, invalidations_log, |pr| {
             keys.contains(&pr.property_key)
         })
     }
@@ -70,7 +76,7 @@ impl<T: BusValue> TypeTopic<T> {
         }
     }
     pub fn invalidated(&mut self, bus: &Bus, translater: &PonTranslater, invalidations_log: &Vec<InvalidatedChange>) -> Vec<PropRef> {
-        self.topic.invalidated(invalidations_log, |pr| {
+        self.topic.invalidated(bus, invalidations_log, |pr| {
             match bus.get(pr, translater) {
                 Ok(v) => v.is::<T>(),
                 Err(_) => false

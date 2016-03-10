@@ -87,6 +87,15 @@ impl<K: Eq + Hash + Clone> InverseDependenciesCounter<K> {
             None => false
         }
     }
+    pub fn iter_nonzero<'a>(&'a self) -> Box<Iterator<Item=&'a K> + 'a> {
+        Box::new(self.props.iter().filter_map(|(k, v)| {
+            if v.counter > 0 {
+                Some(k)
+            } else {
+                None
+            }
+        }))
+    }
     pub fn change_counter_recursively(&mut self, key: K, diff: i32, change: &mut ChangedNonZero<K>) {
         let dependents = {
             let p = self.props.entry(key.clone()).or_insert(InvProp::new());

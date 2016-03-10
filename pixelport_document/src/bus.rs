@@ -290,6 +290,9 @@ impl Bus {
     pub fn iter<'a>(&'a self) -> Box<Iterator<Item=&'a PropRef> + 'a> {
         Box::new(self.entries.keys())
     }
+    pub fn iter_invalidated<'a>(&'a self) -> Box<Iterator<Item=&'a PropRef> + 'a> {
+        Box::new(self.inv_dep_counter.iter_nonzero())
+    }
     pub fn clear_cache(&mut self) {
         self.cycle += 1;
         self.stats = RefCell::new(BusStats::new());

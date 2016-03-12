@@ -11,72 +11,13 @@ use std::slice::SliceConcatExt;
 use std::hash::Hasher;
 use std::hash::Hash;
 use std::cmp::Eq;
-use std::cmp::Ordering;
-use std::cmp::PartialOrd;
 use cgmath::{Vector2, Vector3, Vector4, Matrix4};
-use std::any::Any;
-use std::fmt::Debug;
-use std::marker::Reflect;
-
 
 pub fn selector_from_string(string: &str) -> Result<Selector, PonParseError> {
     pon_peg::selector(string)
 }
 
-pub trait PonNativeObject : Debug {
-    fn clone_to_pno(&self) -> Box<PonNativeObject>;
-    fn as_any(&self) -> &Any;
-}
-
-#[macro_export]
-macro_rules! impl_pno {
-    ($typ:ty) => (
-        impl $crate::pon::PonNativeObject for $typ {
-            fn clone_to_pno(&self) -> Box<$crate::pon::PonNativeObject> {
-                Box::new(self.clone())
-            }
-            fn as_any(&self) -> &::std::any::Any {
-                self as &::std::any::Any
-            }
-        }
-    )
-}
-
-impl_pno!(Vec<Pon>);
-impl_pno!(HashMap<String, Pon>);
-impl_pno!(f32);
-impl_pno!(String);
-impl_pno!(bool);
-impl_pno!(Matrix4<f32>);
-impl_pno!(Vector2<f32>);
-impl_pno!(Vector3<f32>);
-impl_pno!(Vector4<f32>);
-impl<T: PonNativeObject + Reflect + 'static + Clone> PonNativeObject for Vec<T> {
-    fn clone_to_pno(&self) -> Box<PonNativeObject> {
-        let mut p: Vec<T> = Vec::new();
-        for x in self.iter() {
-            p.push(x.clone());
-        }
-        Box::new(p)
-    }
-    fn as_any(&self) -> &::std::any::Any {
-        self as &::std::any::Any
-    }
-}
-impl<T: PonNativeObject + Reflect + 'static + Clone> PonNativeObject for HashMap<String, T> {
-    fn clone_to_pno(&self) -> Box<PonNativeObject> {
-        let mut p: HashMap<String, T> = HashMap::new();
-        for (k, v) in self.iter() {
-            p.insert(k.clone(), v.clone());
-        }
-        Box::new(p)
-    }
-    fn as_any(&self) -> &::std::any::Any {
-        self as &::std::any::Any
-    }
-}
-
-#[derive(PartialEq, Eq, Debug, Clone, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct NamedPropRef {
     pub selector: Selector,
     pub property_key: String
@@ -101,7 +42,11 @@ impl ToString for NamedPropRef {
         format!("{}.{}", self.selector.to_string(), self.property_key)
     }
 }
-impl_pno!(NamedPropRef);
+impl ToPon for NamedPropRef {
+    fn to_pon(&self) -> Pon {
+        Pon::Reference(self.clone())
+    }
+}
 
 #[derive(PartialEq, Debug, Clone, Hash, PartialOrd, Ord)]
 pub struct PropRef {
@@ -119,9 +64,8 @@ impl PropRef {
 impl Eq for PropRef {
     // hack, relies on PartialEq to be defined
 }
-impl_pno!(PropRef);
 
-#[derive(PartialEq, Eq, Debug, Clone, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PonCall {
     pub function_name: String,
     pub arg: Pon
@@ -132,7 +76,7 @@ impl PonCall {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Pon {
     PonCall(Box<PonCall>),
     DependencyReference(NamedPropRef, Option<PropRef>),
@@ -230,23 +174,7 @@ impl Hash for Pon {
     }
 }
 
-impl Eq for Pon {
-    // This "works" because it derives PartialEq, so there's already an Eq method on it
-}
 
-impl Ord for Pon {
-    fn cmp(&self, other: &Pon) -> Ordering {
-        let a = format!("{:?}", self);
-        let b = format!("{:?}", other);
-        a.cmp(&b)
-    }
-}
-
-impl PartialOrd for Pon {
-    fn partial_cmp(&self, other: &Pon) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
 
 
 pub trait ToPon {
@@ -258,19 +186,30 @@ impl ToPon for Pon {
         self.clone()
     }
 }
+
+impl ToPon for bool {
+    fn to_pon(&self) -> Pon {
+        Pon::Boolean(*self)
+    }
+}
 impl ToPon for f32 {
     fn to_pon(&self) -> Pon {
         Pon::Number(*self)
     }
 }
-impl ToPon for Vec<f32> {
+impl ToPon for String {
     fn to_pon(&self) -> Pon {
-        Pon::Array(self.iter().map(|v| Pon::Number(*v)).collect())
+        Pon::String(self.clone())
     }
 }
-impl ToPon for Vec<i64> {
+impl<T: ToPon> ToPon for Vec<T> {
     fn to_pon(&self) -> Pon {
-        Pon::Array(self.iter().map(|v| Pon::Number(*v as f32)).collect())
+        Pon::Array(self.iter().map(|v| v.to_pon()).collect())
+    }
+}
+impl<T: ToPon> ToPon for HashMap<String, T> {
+    fn to_pon(&self) -> Pon {
+        Pon::Object(self.iter().map(|(k, v)| (k.clone(), v.to_pon())).collect())
     }
 }
 

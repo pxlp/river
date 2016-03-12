@@ -56,13 +56,13 @@ fn main() {
                             .and_then(|d| d.decode())
                             .unwrap_or_else(|e| e.exit());
 
-    let (mut doc, root_path) = {
+    let (doc, root_path) = {
         if let Some(filename) = args.arg_document {
             let path = Path::new(&filename);
             let root_path = path.parent().unwrap().to_path_buf();
-            (Document::from_file(path).unwrap(), root_path)
+            (DocumentDescription::FromFile(path.to_path_buf()), root_path)
         } else {
-            (Document::new_with_root(), Path::new(".").to_path_buf())
+            (DocumentDescription::Empty, Path::new(".").to_path_buf())
         }
     };
 

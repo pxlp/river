@@ -53,10 +53,15 @@ pub enum TimeProgression {
     Fixed { step_ms: u32 }
 }
 
+pub enum DocumentDescription {
+    Empty,
+    FromFile(PathBuf)
+}
+
 pub struct AppOptions {
     pub viewport: pixelport_viewport::ViewportSubSystemOptions,
     pub port: u16,
-    pub document: Document,
+    pub document: DocumentDescription,
     pub root_path: PathBuf,
     pub time_progression: TimeProgression,
     pub min_frame_ms: Option<f32>
@@ -75,32 +80,41 @@ impl App {
         let mut layout = pixelport_layout::LayoutSubSystem::new();
         let mut models = pixelport_models::Models::new(opts.root_path.clone());
 
-        pixelport_util::pon_util(&mut opts.document.runtime);
-        pixelport_bounding::pon_bounding(&mut opts.document.runtime);
-        pixelport_models::pon_models(&mut opts.document.runtime);
+        let mut translater = PonTranslater::new();
+        pixelport_util::pon_util(&mut translater);
+        pixelport_bounding::pon_bounding(&mut translater);
+        pixelport_models::pon_models(&mut translater);
         pixelport_models::init_logging();
-        subdoc.on_init(&mut opts.document);
-        template.on_init(&mut opts.document);
-        animation.on_init(&mut opts.document);
-        viewport.on_init(&mut opts.document);
-        picking.on_init(&mut opts.document);
-        culling.on_init(&mut opts.document);
-        layout.on_init(&mut opts.document);
+        subdoc.on_init(&mut translater);
+        template.on_init(&mut translater);
+        animation.on_init(&mut translater);
+        viewport.on_init(&mut translater);
+        picking.on_init(&mut translater);
+        culling.on_init(&mut translater);
+        layout.on_init(&mut translater);
 
-        println!("## READY FOR CONNECTIONS ##");
-        println!("{{ \"port\": {} }}", tcpinterface.port());
         let start_time = match &opts.time_progression {
             &TimeProgression::Real => time::get_time(),
             &TimeProgression::Fixed { .. } => Timespec::new(0, 0)
         };
-
         let start_time_inner = start_time.clone();
-        opts.document.runtime.register_function("time", move |_, _, _| {
+        translater.register_function("time", move |_, _, _| {
             let t: f32 = (time::get_time() - start_time_inner).num_milliseconds() as f32 / 1000.0;
             Ok(Box::new(t))
         }, "time");
+
+        let mut document = match &opts.document {
+            &DocumentDescription::Empty => Document::new_with_root(translater),
+            &DocumentDescription::FromFile(ref path) => Document::from_file(translater, path).unwrap()
+        };
+
+        viewport.set_doc(&mut document);
+
+        println!("## READY FOR CONNECTIONS ##");
+        println!("{{ \"port\": {} }}", tcpinterface.port());
+
         App {
-            document: opts.document,
+            document: document,
             subdoc: subdoc,
             template: template,
             animation: animation,
@@ -128,22 +142,17 @@ impl App {
         self.prev_time = curr_time;
 
         if self.viewport.pre_update(&mut self.document) { return false; }
-        for _ in 0..100 { // At most 100 cycles before we do an update
-            // A cycle is basically a subset of a frame. There might be 1 or more cycles per frame.
-            let cycle_changes = self.document.close_cycle();
-            self.subdoc.on_cycle(&mut self.document, &cycle_changes, &mut self.models);
-            self.template.on_cycle(&mut self.document, &cycle_changes);
-            self.animation.on_cycle(&mut self.document, &cycle_changes, time, &mut self.models);
-            self.layout.on_cycle(&mut self.document, &cycle_changes);
-            self.picking.on_cycle(&mut self.document, &cycle_changes);
-            self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources, &mut self.models);
-            self.tcpinterface.on_cycle(&mut self.document, &cycle_changes);
-            self.culling.on_cycle(&mut self.document, &cycle_changes);
-            if cycle_changes.set_properties.len() == 0 && cycle_changes.entities_added.len() == 0 &&
-                cycle_changes.entities_removed.len() == 0 {
-                break;
-            }
-        }
+
+        let cycle_changes = self.document.close_cycle();
+        self.subdoc.on_cycle(&mut self.document, &cycle_changes, &mut self.models);
+        self.template.on_cycle(&mut self.document, &cycle_changes);
+        self.animation.on_cycle(&mut self.document, &cycle_changes, time, &mut self.models);
+        self.layout.on_cycle(&mut self.document, &cycle_changes);
+        self.picking.on_cycle(&mut self.document, &cycle_changes);
+        self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources, &mut self.models);
+        self.tcpinterface.on_cycle(&mut self.document, &cycle_changes);
+        self.culling.on_cycle(&mut self.document, &cycle_changes);
+
         self.animation.on_update(&mut self.document, time);
         self.layout.on_update(&mut self.document);
         self.picking.on_update(&mut self.document);
@@ -196,9 +205,6 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
             },
             Err(err) => Err(format!("Failed to create screenshot: {:?}", err))
         }
-    }
-    fn rebuild_scene(&mut self, doc: &mut Document) {
-        self.viewport.rebuild_scene(self.resources, &mut self.models, doc);
     }
     fn update_all_uniforms(&mut self, doc: &mut Document) {
         self.viewport.update_all_uniforms(doc);
@@ -261,7 +267,7 @@ pub extern "C" fn pixelport_new() -> *mut App {
             window_size: None
         },
         port: 4303,
-        document: Document::new_with_root(),
+        document: DocumentDescription::Empty,
         root_path: Path::new(".").to_path_buf(),
         time_progression: TimeProgression::Real,
         min_frame_ms: None

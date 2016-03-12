@@ -35,9 +35,11 @@ impl Selection {
         self.reevaluate_all(document)
     }
     pub fn cycle(&mut self, document: &Document, changes: &CycleChanges) -> SelectionChange {
-        for pr in &changes.set_properties {
-            if self.selector.property_of_interest(&pr.property_key) {
-                return self.reevaluate_all(document);
+        for i in &changes.invalidations_log {
+            for pr in &i.added {
+                if self.selector.property_of_interest(&pr.property_key) {
+                    return self.reevaluate_all(document);
+                }
             }
         }
         let mut sel_changes = SelectionChange {

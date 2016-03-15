@@ -184,7 +184,7 @@ impl Bus {
         });
     }
     fn set(&mut self, key: &PropRef, dependencies: Vec<PropRef>, volatile: bool, value: BusEntryValue) {
-        let mut change = self.inv_dep_counter.set_dependencies(key, dependencies);
+        let mut change = ChangedNonZero::new();
         let was_volatile = {
             match self.entries.entry(key.clone()) {
                 Entry::Occupied(o) => {
@@ -206,20 +206,26 @@ impl Bus {
                 }
             }
         };
+
         if volatile {
             self.stats.borrow_mut().n_volatile_sets += 1;
             if !was_volatile {
                 self.inv_dep_counter.change_counter_recursively(key.clone(), 1, &mut change);
             }
+
+            self.inv_dep_counter.set_dependencies(key, dependencies, &mut change);
         } else {
             self.stats.borrow_mut().n_involatile_sets += 1;
             if was_volatile {
                 self.inv_dep_counter.change_counter_recursively(key.clone(), -1, &mut change);
+                self.inv_dep_counter.set_dependencies(key, dependencies, &mut change);
             } else {
                 self.inv_dep_counter.change_counter_recursively(key.clone(), 1, &mut change);
+                self.inv_dep_counter.set_dependencies(key, dependencies, &mut change);
                 self.inv_dep_counter.change_counter_recursively(key.clone(), -1, &mut change);
             }
         }
+
         if change.added.len() > 0 || change.removed.len() > 0 {
             self.stats.borrow_mut().n_adds += change.added.len() as i32;
             self.stats.borrow_mut().n_removes += change.removed.len() as i32;
@@ -281,7 +287,7 @@ impl Bus {
         }
     }
     pub fn remove(&mut self, key: &PropRef) {
-        self.inv_dep_counter.set_dependencies(key, Vec::new());
+        self.inv_dep_counter.remove_property(key);
         self.entries.remove(key);
     }
     pub fn has(&self, key: &PropRef) -> bool {

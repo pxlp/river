@@ -44,15 +44,14 @@ impl<K: Eq + Hash + Clone> InverseDependenciesCounter<K> {
             props: HashMap::new()
         }
     }
-    pub fn set_dependencies(&mut self, key: &K, dependencies: Vec<K>) -> ChangedNonZero<K> {
-        let mut change = ChangedNonZero::new();
+    pub fn set_dependencies(&mut self, key: &K, dependencies: Vec<K>, change: &mut ChangedNonZero<K>) {
         // This pr depends on a all these dependencies and together they have all invalidated this
         // one `uninvalidate` number of times.
         let mut uninvalidate = 0;
         let old_dependencies = {
             let p = self.props.entry(key.clone()).or_insert(InvProp::new());
             if p.dependencies == dependencies {
-                return change;
+                return;
             }
             mem::replace(&mut p.dependencies, dependencies.clone())
         };
@@ -72,12 +71,12 @@ impl<K: Eq + Hash + Clone> InverseDependenciesCounter<K> {
         // Finally we update the _depenedants_ of this one (which hasn't changed!) with the difference
         // in how many this one is invalidated by.
         if reinvalidate - uninvalidate != 0 {
-            self.change_counter_recursively(key.clone(), reinvalidate - uninvalidate, &mut change);
+            self.change_counter_recursively(key.clone(), reinvalidate - uninvalidate, change);
         }
-        change
     }
     pub fn remove_property(&mut self, key: &K) -> ChangedNonZero<K> {
-        let change = self.set_dependencies(key, Vec::new());
+        let mut change = ChangedNonZero::new();
+        self.set_dependencies(key, Vec::new(), &mut change);
         self.props.remove(key);
         change
     }

@@ -11,7 +11,8 @@
   "dependencies": {
     "bluebird": "^2.10.2",
     "byline": "^4.2.1",
-    "debug": "^2.2.0"
+    "debug": "^2.2.0",
+    "reconnect-core": "^1.2.0"
   },
   "devDependencies": {
     "chai": "^3.5.0",

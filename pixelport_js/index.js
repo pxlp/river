@@ -11,11 +11,16 @@ var debug_request = require('debug')('pixelport:request');
 var debug_response = require('debug')('pixelport:response');
 var debug_window_stdout = require('debug')('pixelport:window:stdout');
 var debug_window_stderr = require('debug')('pixelport:window:stderr');
+var reconnect = require('reconnect-core')(function () {
+  return net.connect.apply(null, arguments);
+});
+
 
 class Pixelport extends EventEmitter {
   constructor() {
     super();
     this.client = null;
+    this.stream = null;
     this.process = null;
     this.pending = {};
     this.rpcIdCounter = 1;
@@ -40,7 +45,7 @@ class Pixelport extends EventEmitter {
       };
       debug_request("id=%d, %o", requestId, message);
       this.pending[requestId] = { resolve: resolve, reject: reject };
-      this.client.write(JSON.stringify(cmd) + '\r\n');
+      this.stream.write(JSON.stringify(cmd) + '\r\n');
     });
   }
 
@@ -290,35 +295,52 @@ class Pixelport extends EventEmitter {
     }
   }
 
-  connectToWindow(address) {
+  connectToWindow(opts) {
     return new Promise((resolve, reject) => {
-      address = address || {};
+      opts = opts || {};
+      let address = opts.address || {};
       address.port = address.port || 4303;
-      debug('Connecting to window on address %o', address);
       this.connection = {
         address: address
       };
-      this.client = net.connect(address, function() {
-        debug('Connected to pixelport app!');
-        resolve();
-      });
-      this.client.readable = true; // Just to get byline working
-      var lines = byline(this.client);
+      let reconnectOpts = opts.reconnect || {}; // See https://www.npmjs.com/package/reconnect-core for options
+      if (reconnectOpts === true) { reconnectOpts = {}; }
+      debug('Connecting to Pixelport %o', opts);
+      var streamPromiseResolve = null;
+      var streamPromise = new Promise((resolve) => streamPromiseResolve = resolve );
+      this.client = reconnect(reconnectOpts, (stream) => {
+        this.stream = stream;
+        //stream.readable = true; // Just to get byline working
+        var lines = byline(stream);
 
-      this.client.on('error', function(error) {
-        debug("Socket error: %o", error);
-        reject(error);
-      });
-
-      lines.on('data', line => {
-        var message = JSON.parse(line);
-        this._handleMessage(message);
-      });
-
-      this.client.on('end', () => {
-        debug('Connection to %o ended', address);
-        this.emit('closed');
-      });
+        lines.on('data', line => {
+          var message = JSON.parse(line);
+          this._handleMessage(message);
+        });
+        streamPromiseResolve();
+      })
+      .on('connect', (con) => {
+        // Make sure the stream is created first
+        streamPromise.then(() => {
+          debug('Connected to %o', address);
+          resolve();
+          this.emit('connect');
+        });
+      })
+      .on('reconnect', (n, delay) => {
+        debug('Reconnected to %o', address);
+        this.emit('reconnect');
+      })
+      .on('disconnect', (err) => {
+        debug('Disconnected from %o', address);
+        this.emit('disconnect');
+      })
+      .on('error', (err) => {
+        debug("Socket error: %o", err);
+        this.emit('socket-error', err);
+      })
+      .connect(address);
+      this.client.reconnect = !!opts.reconnect;
     });
   }
 
@@ -370,15 +392,16 @@ $ export PIXELPORT_APP_PATH=~/pixelport/pixelport_app/target/release/pixelport_a
       this.window = {
         port: config.port
       };
-      return this.connectToWindow({ port: config.port });
+      return this.connectToWindow({ address: { port: config.port }, reconnect: opts.reconnect });
     })
   }
 
   createOrConnectToWindow(opts) {
     if (process.env.PIXELPORT_CONNECT_TO) {
-      return this.connectToWindow({
-        port: parseInt(process.env.PIXELPORT_CONNECT_TO)
-      });
+      opts = opts || {};
+      opts.address = opts.address || {};
+      opts.address.port = parseInt(process.env.PIXELPORT_CONNECT_TO);
+      return this.connectToWindow(opts);
     } else {
       return this.createWindow(opts);
     }

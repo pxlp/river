@@ -7,7 +7,7 @@ fn test_doc() -> (EntityId, EntityId, EntityId, EntityId, EntityId, EntityId, Do
     let doc = Document::from_string(PonTranslater::new(), r#"
         <Root>
             <Entity name="a">
-                <Entity name="b" x="5" y="1">
+                <Entity name="b" x="@this.five" y="1" five="5">
                     <Car name="c" />
                 </Entity>
                 <Entity name="d" y="3" />

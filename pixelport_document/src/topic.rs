@@ -47,10 +47,13 @@ pub struct PropertyKeyTopic {
 }
 
 impl PropertyKeyTopic {
-    pub fn new(keys: Vec<&str>) -> PropertyKeyTopic {
+    pub fn from_slice(keys: &[&str]) -> PropertyKeyTopic {
+        PropertyKeyTopic::new(keys.iter().map(|x| x.to_string()).collect())
+    }
+    pub fn new(keys: Vec<String>) -> PropertyKeyTopic {
         PropertyKeyTopic {
             topic: Topic::new(),
-            keys: keys.into_iter().map(|x| x.to_string()).collect()
+            keys: keys
         }
     }
     pub fn invalidated(&mut self, bus: &Bus, invalidations_log: &Vec<InvalidatedChange>) -> Vec<PropRef> {

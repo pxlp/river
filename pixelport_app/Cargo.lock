@@ -813,6 +813,7 @@ dependencies = [
  "pixelport_document 0.1.0",
  "pixelport_models 0.1.0",
  "pixelport_resources 0.1.0",
+ "pixelport_template 0.1.0",
  "pixelport_util 0.1.0",
  "pixelport_viewport_api 0.1.0",
  "ppromise 0.1.0",

@@ -89,7 +89,7 @@ impl App {
         subdoc.on_init(&mut translater);
         template.on_init(&mut translater);
         animation.on_init(&mut translater);
-        viewport.on_init(&mut translater);
+        viewport.on_init(&mut translater, &mut template);
         picking.on_init(&mut translater);
         culling.on_init(&mut translater);
         layout.on_init(&mut translater);

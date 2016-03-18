@@ -82,7 +82,10 @@ impl<T: BusValue> TypeTopic<T> {
         self.topic.invalidated(bus, invalidations_log, |pr| {
             match bus.get(pr, translater) {
                 Ok(v) => v.is::<T>(),
-                Err(_) => false
+                Err(err) => {
+                    warn!("Failed to get value of #{}.{}: {}", pr.entity_id, pr.property_key, err.to_string());
+                    false
+                }
             }
         })
     }

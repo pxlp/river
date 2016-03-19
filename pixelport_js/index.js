@@ -156,12 +156,6 @@ class Pixelport extends EventEmitter {
     });
   }
 
-  viewportDumpPipelines() {
-    return this._request({
-      ViewportDumpPipelines: []
-    });
-  }
-
   viewportDumpResources() {
     return this._request({
       ViewportDumpResources: []

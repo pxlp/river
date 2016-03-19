@@ -207,9 +207,6 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
             Err(err) => Err(format!("Failed to create screenshot: {:?}", err))
         }
     }
-    fn dump_pipeline(&self) {
-        self.viewport.dump_pipeline();
-    }
     fn dump_resources(&self) {
         self.resources.dump();
     }
@@ -242,13 +239,11 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
     }
     fn get_renderer_stats(&mut self) -> Vec<pixelport_tcpinterface::messages::RendererStats> {
         let mut stats = vec![];
-        for p in &self.viewport.pipelines {
-            for r in &p.renderers {
-                stats.push(pixelport_tcpinterface::messages::RendererStats {
-                    name: r.desc.name.clone(),
-                    n_renderables: r.n_renderables()
-                })
-            }
+        for r in &self.viewport.renderers {
+            stats.push(pixelport_tcpinterface::messages::RendererStats {
+                name: r.desc.name.clone(),
+                n_renderables: r.n_renderables()
+            })
         }
         stats
     }

@@ -133,7 +133,8 @@ pub struct Bus {
 pub enum BusError {
     NoSuchEntry { prop_ref: PropRef },
     EntryOfWrongType { expected: String, found: String, value: String },
-    PonTranslateError { err: PonTranslaterErr }
+    PonTranslateError { err: PonTranslaterErr },
+    Generic(String)
 }
 impl From<PonTranslaterErr> for BusError {
     fn from(err: PonTranslaterErr) -> BusError {

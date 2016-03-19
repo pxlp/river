@@ -89,7 +89,7 @@ impl App {
         subdoc.on_init(&mut translater);
         template.on_init(&mut translater);
         animation.on_init(&mut translater);
-        viewport.on_init(&mut translater);
+        viewport.on_init(&mut translater, &mut template);
         picking.on_init(&mut translater);
         culling.on_init(&mut translater);
         layout.on_init(&mut translater);
@@ -207,12 +207,6 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
             Err(err) => Err(format!("Failed to create screenshot: {:?}", err))
         }
     }
-    fn update_all_uniforms(&mut self, doc: &mut Document) {
-        self.viewport.update_all_uniforms(doc);
-    }
-    fn dump_pipeline(&self) {
-        self.viewport.dump_pipeline();
-    }
     fn dump_resources(&self) {
         self.resources.dump();
     }
@@ -245,13 +239,11 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
     }
     fn get_renderer_stats(&mut self) -> Vec<pixelport_tcpinterface::messages::RendererStats> {
         let mut stats = vec![];
-        for p in &self.viewport.pipelines {
-            for r in &p.renderers {
-                stats.push(pixelport_tcpinterface::messages::RendererStats {
-                    name: r.desc.name.clone(),
-                    n_renderables: r.n_renderables()
-                })
-            }
+        for r in &self.viewport.renderers {
+            stats.push(pixelport_tcpinterface::messages::RendererStats {
+                name: r.desc.name.clone(),
+                n_renderables: r.n_renderables()
+            })
         }
         stats
     }

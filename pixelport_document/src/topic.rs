@@ -47,10 +47,13 @@ pub struct PropertyKeyTopic {
 }
 
 impl PropertyKeyTopic {
-    pub fn new(keys: Vec<&str>) -> PropertyKeyTopic {
+    pub fn from_slice(keys: &[&str]) -> PropertyKeyTopic {
+        PropertyKeyTopic::new(keys.iter().map(|x| x.to_string()).collect())
+    }
+    pub fn new(keys: Vec<String>) -> PropertyKeyTopic {
         PropertyKeyTopic {
             topic: Topic::new(),
-            keys: keys.into_iter().map(|x| x.to_string()).collect()
+            keys: keys
         }
     }
     pub fn invalidated(&mut self, bus: &Bus, invalidations_log: &Vec<InvalidatedChange>) -> Vec<PropRef> {
@@ -79,7 +82,10 @@ impl<T: BusValue> TypeTopic<T> {
         self.topic.invalidated(bus, invalidations_log, |pr| {
             match bus.get(pr, translater) {
                 Ok(v) => v.is::<T>(),
-                Err(_) => false
+                Err(err) => {
+                    warn!("Failed to get value of #{}.{}: {}", pr.entity_id, pr.property_key, err.to_string());
+                    false
+                }
             }
         })
     }

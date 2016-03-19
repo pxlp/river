@@ -70,6 +70,12 @@ fn test_examples_sample_frame_buffer() {
 }
 
 #[test]
+fn test_examples_cascading_shadow_maps() {
+    let mut app = setup_app("cascading_shadow_maps/index");
+    compare_screenshot("cascading_shadow_maps", &app);
+}
+
+#[test]
 fn test_visualize_entity_renderer_bounding() {
     let mut app = setup_app("box");
     app.viewport.visualize_entity_bounding = Some(3);

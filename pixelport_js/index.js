@@ -234,7 +234,7 @@ class Pixelport extends EventEmitter {
     return new Promise((resolve, reject) => {
       let stream = this.subDocStreamCreate({ selector: selector, property_regex: property });
       stream.on('cycle', (changes) => {
-        if (changes.set_properties.length > 0) {
+        if (changes.updated_properties.length > 0) {
           stream.destroy();
           resolve();
         }

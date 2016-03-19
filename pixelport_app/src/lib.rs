@@ -207,9 +207,6 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
             Err(err) => Err(format!("Failed to create screenshot: {:?}", err))
         }
     }
-    fn update_all_uniforms(&mut self, doc: &mut Document) {
-        self.viewport.update_all_uniforms(doc);
-    }
     fn dump_pipeline(&self) {
         self.viewport.dump_pipeline();
     }

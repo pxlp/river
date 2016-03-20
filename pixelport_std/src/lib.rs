@@ -181,8 +181,8 @@ pub fn pon_std(translater: &mut PonTranslater) {
             Ok(vals.iter().fold(0.0, |acc, &v| acc + v))
         }
 
-        "Multiply two numbers",
-        mul_s(vals: [f32]) f32 => {
+        "Multiply a list of numbers",
+        mul(vals: [f32]) f32 => {
             Ok(vals.iter().fold(1.0, |acc, &v| acc * v))
         }
 
@@ -410,7 +410,7 @@ pub fn pon_std(translater: &mut PonTranslater) {
 
 
         "Multiply a number of matrices together",
-        mul(data : [Matrix4<f32>]) Matrix4<f32> => {
+        matrix_mul(data : [Matrix4<f32>]) Matrix4<f32> => {
             let mut a: Matrix4<f32> = Matrix4::identity();
             for b in data {
                 a = &a * &b;

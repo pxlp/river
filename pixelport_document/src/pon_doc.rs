@@ -150,7 +150,9 @@ impl PonDocFunction {
 // Returns: {returns}
 ```
 
-"#, name=self.name, arg_usage=self.arg.generate_usage(0), returns=self.target_type_name)
+{doc}
+
+"#, name=self.name, arg_usage=self.arg.generate_usage(0), returns=self.target_type_name, doc=self.doc)
     }
 }
 

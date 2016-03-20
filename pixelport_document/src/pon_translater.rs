@@ -76,6 +76,66 @@ macro_rules! pon_expand {
     );
 }
 
+
+#[macro_export]
+macro_rules! pon_doc_expand_map {
+    ($fields:expr, { }) => ();
+    ($fields:expr, { $name:ident : $inner:tt, $($rest:tt)* }) => (
+        $fields.push(PonDocMapField {
+            var_name: stringify!($name).to_string(),
+            optional: false,
+            default: None,
+            value: pon_doc_expand!($inner)
+        });
+        pon_doc_expand_map!($fields, { $($rest)* })
+    );
+    ($fields:expr, { $name:ident : $inner:tt optional, $($rest:tt)* }) => (
+        $fields.push(PonDocMapField {
+            var_name: stringify!($name).to_string(),
+            optional: true,
+            default: None,
+            value: pon_doc_expand!($inner)
+        });
+        pon_doc_expand_map!($fields, { $($rest)* })
+    );
+    ($fields:expr, { $name:ident : $inner:tt | $default:expr, $($rest:tt)* }) => (
+        $fields.push(PonDocMapField {
+            var_name: stringify!($name).to_string(),
+            optional: false,
+            default: Some(stringify!($default).to_string()),
+            value: pon_doc_expand!($inner)
+        });
+        pon_doc_expand_map!($fields, { $($rest)* })
+    );
+}
+
+#[macro_export]
+macro_rules! pon_doc_expand {
+    () => ($crate::pon_translater::PonDocMatcher::Nil);
+    (( enum { $($id:expr => $val:expr,)+ } )) => ({
+        $crate::pon_translater::PonDocMatcher::Enum(vec![$(
+            PonDocEnumOption { name: $id.to_string() },
+        )+])
+    });
+    ({ $typ:ty }) => ({
+        $crate::pon_translater::PonDocMatcher::Object { typ: stringify!($typ).to_string() }
+    });
+    ({ $($rest:tt)* }) => ({
+        let mut fields = Vec::new();
+        pon_doc_expand_map!(fields, { $($rest)* });
+        $crate::pon_translater::PonDocMatcher::Map(fields)
+    });
+    ([ $typ:ty ]) => ({
+        $crate::pon_translater::PonDocMatcher::Array { typ: stringify!($typ).to_string() }
+    });
+    (( $typ:ty )) => (
+        $crate::pon_translater::PonDocMatcher::Value { typ: stringify!($typ).to_string() }
+    );
+    ($name:ident : $t:tt) => (
+        $crate::pon_translater::PonDocMatcher::Capture { var_name: stringify!($name).to_string(), value: Box::new(pon_doc_expand!($t)) }
+    );
+}
+
 #[macro_export]
 macro_rules! pon_register_functions {
     ($translater:expr => $($func_name:ident($($args:tt)*) {$($env_ident:ident: $env:expr),*} $ret:ty => $body:block)*) => (
@@ -88,15 +148,59 @@ macro_rules! pon_register_functions {
                     Err(err) => Err(err)
                 }
             }
-            $translater.register_function(stringify!($func_name), $func_name, stringify!($ret));
+            let doc = $crate::pon_translater::PonDocFunction {
+                name: stringify!($func_name).to_string(),
+                target_type_name: stringify!($ret).to_string(),
+                arg: pon_doc_expand!($($args)*)
+            };
+            $translater.register_function($func_name, doc);
         })*
     );
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct PonDocMapField {
+    pub var_name: String,
+    pub optional: bool,
+    pub default: Option<String>,
+    pub value: PonDocMatcher
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PonDocEnumOption {
+    pub name: String
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum PonDocMatcher {
+    Nil,
+    Value {
+        typ: String
+    },
+    Array {
+        typ: String
+    },
+    Object {
+        typ: String
+    },
+    Map(Vec<PonDocMapField>),
+    Enum(Vec<PonDocEnumOption>),
+    Capture {
+        var_name: String,
+        value: Box<PonDocMatcher>
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PonDocFunction {
+    pub name: String,
+    pub target_type_name: String,
+    pub arg: PonDocMatcher
+}
 
 struct PonFn {
     func: Box<Fn(&Pon, &PonTranslater, &Bus) -> Result<Box<BusValue>, PonTranslaterErr>>,
-    target_type_name: String
+    doc: PonDocFunction
 }
 
 pub struct PonTranslater {
@@ -109,11 +213,11 @@ impl PonTranslater {
             functions: HashMap::new()
         }
     }
-    pub fn register_function<F>(&mut self, name: &str, func: F, target_type_name: &str)
+    pub fn register_function<F>(&mut self, func: F, doc: PonDocFunction)
         where F: Fn(&Pon, &PonTranslater, &Bus) -> Result<Box<BusValue>, PonTranslaterErr> + 'static {
-        self.functions.insert(name.to_string(), PonFn {
+        self.functions.insert(doc.name.to_string(), PonFn {
             func: Box::new(func),
-            target_type_name: target_type_name.to_string()
+            doc: doc
         });
     }
     pub fn translate<T: BusValue>(&self, pon: &Pon, bus: &Bus) -> Result<T, PonTranslaterErr> {
@@ -160,6 +264,9 @@ impl PonTranslater {
             &Pon::Boolean(ref value) => Ok(Box::new(value.clone())),
             &Pon::Nil => Ok(Box::new(()))
         }
+    }
+    pub fn get_docs(&self) -> Vec<PonDocFunction> {
+        self.functions.values().map(|v| v.doc.clone()).collect()
     }
 }
 

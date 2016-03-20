@@ -49,10 +49,10 @@ fn test_property_reference_object() {
 #[test]
 fn test_property_reference_transfer() {
     let mut translater = PonTranslater::new();
-    translater.register_function("something", |arg, translater, doc| {
+    translater.register_function(|arg, translater, doc| {
         let x = translater.translate::<f32>(arg, doc).unwrap();
         Ok(Box::new(x * 2.0))
-    }, "f32");
+    }, PonDocFunction { name: "something".to_string(), target_type_name: "f32".to_string(), arg: PonDocMatcher::Value { typ: "f32".to_string() } });
     let mut doc = Document::from_string(translater, r#"<Entity name="tmp" x="5.0" y="something @this.x" />"#).unwrap();
     let ent = doc.get_entity_by_name("tmp").unwrap();
     assert_eq!(doc.get_property::<f32>(ent, "y").unwrap(), 10.0);

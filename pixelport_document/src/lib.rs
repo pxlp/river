@@ -7,11 +7,14 @@ extern crate cgmath;
 extern crate log;
 #[macro_use]
 extern crate mopa;
+extern crate pad;
 
 #[macro_use]
 pub mod hashmap_macro;
 #[macro_use]
 pub mod pon;
+#[macro_use]
+pub mod pon_doc;
 #[macro_use]
 pub mod pon_translater;
 pub mod document;
@@ -23,6 +26,8 @@ pub mod bus;
 pub mod topic;
 
 pub use pon::*;
+#[macro_use]
+pub use pon_doc::*;
 #[macro_use]
 pub use pon_translater::*;
 pub use document::*;

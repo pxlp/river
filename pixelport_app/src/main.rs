@@ -24,16 +24,17 @@ Usage:
   pixelport [options] [<document>]
 
 Options:
-  -h --help              Show this screen.
-  --port=<pt>            TCP port to expose [default: 4303].
-  --multisampling=<ms>   Multisampling [default: 8].
-  --fullscreen           Fullscreen mode.
-  --vsync                Enable vsync.
-  --headless             Headless mode.
-  --width=<px>           Window width.
-  --height=<px>          Window height.
-  --fixedtimestep=<ms>   Fix the frame time step to x ms.
-  --maxfps=<ms>          Max fps [default: 600].
+  -h --help                Show this screen.
+  --port=<pt>              TCP port to expose [default: 4303].
+  --multisampling=<ms>     Multisampling [default: 8].
+  --fullscreen             Fullscreen mode.
+  --vsync                  Enable vsync.
+  --headless               Headless mode.
+  --width=<px>             Window width.
+  --height=<px>            Window height.
+  --fixedtimestep=<ms>     Fix the frame time step to x ms.
+  --maxfps=<ms>            Max fps [default: 600].
+  --genpondocs             Output Pon documentation to stdout and exit.
 ";
 
 #[derive(Debug, RustcDecodable)]
@@ -48,6 +49,7 @@ pub struct Args {
     flag_height: Option<u32>,
     flag_fixedtimestep: Option<u32>,
     flag_maxfps: Option<f32>,
+    flag_genpondocs: bool,
 }
 
 fn main() {
@@ -90,6 +92,16 @@ fn main() {
             None => None
         }
     });
+
+    if args.flag_genpondocs {
+        let docs: Vec<String> = app.document.translater.get_docs().iter().map(|doc| doc.generate_md()).collect();
+        println!("{}", docs.join("\n\n"));
+        return;
+    }
+
+    println!("## READY FOR CONNECTIONS ##");
+    println!("{{ \"port\": {} }}", app.tcpinterface.port());
+
     info!("Starting main loop");
     while {
         app.update()

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use pon::*;
 use bus::*;
+use pon_doc::*;
 
 
 #[macro_export]
@@ -76,9 +77,13 @@ macro_rules! pon_expand {
     );
 }
 
+
 #[macro_export]
 macro_rules! pon_register_functions {
-    ($translater:expr => $($func_name:ident($($args:tt)*) {$($env_ident:ident: $env:expr),*} $ret:ty => $body:block)*) => (
+    ($module:expr, $translater:expr => $($doc:expr, $func_name:ident($($args:tt)*) $ret:ty => $body:block)*) => ({
+        if !$translater.module_docs.contains_key($module) {
+            $translater.module_docs.insert($module.to_string(), "".to_string());
+        }
         $({
             fn $func_name(pon: &Pon, translater: &PonTranslater, bus: &$crate::bus::Bus) -> Result<Box<$crate::bus::BusValue>, PonTranslaterErr> {
                 pon_expand!(pon, translater, bus => $($args)*);
@@ -88,33 +93,44 @@ macro_rules! pon_register_functions {
                     Err(err) => Err(err)
                 }
             }
-            $translater.register_function(stringify!($func_name), $func_name, stringify!($ret));
+            let doc = $crate::pon_doc::PonDocFunction {
+                module: $module.to_string(),
+                name: stringify!($func_name).to_string(),
+                target_type_name: stringify!($ret).to_string(),
+                arg: pon_doc_expand!($($args)*),
+                doc: $doc.to_string()
+            };
+            $translater.register_function($func_name, doc);
         })*
-    );
+    });
 }
-
 
 struct PonFn {
     func: Box<Fn(&Pon, &PonTranslater, &Bus) -> Result<Box<BusValue>, PonTranslaterErr>>,
-    target_type_name: String
+    doc: PonDocFunction
 }
 
 pub struct PonTranslater {
-    functions: HashMap<String, PonFn>
+    functions: HashMap<String, PonFn>,
+    pub module_docs: HashMap<String, String>
 }
 
 impl PonTranslater {
     pub fn new() -> PonTranslater {
         PonTranslater {
-            functions: HashMap::new()
+            functions: HashMap::new(),
+            module_docs: HashMap::new()
         }
     }
-    pub fn register_function<F>(&mut self, name: &str, func: F, target_type_name: &str)
+    pub fn register_function<F>(&mut self, func: F, doc: PonDocFunction)
         where F: Fn(&Pon, &PonTranslater, &Bus) -> Result<Box<BusValue>, PonTranslaterErr> + 'static {
-        self.functions.insert(name.to_string(), PonFn {
+        self.functions.insert(doc.name.to_string(), PonFn {
             func: Box::new(func),
-            target_type_name: target_type_name.to_string()
+            doc: doc
         });
+    }
+    pub fn register_module_doc(&mut self, name: &str, doc: &str) {
+        self.module_docs.insert(name.to_string(), doc.to_string());
     }
     pub fn translate<T: BusValue>(&self, pon: &Pon, bus: &Bus) -> Result<T, PonTranslaterErr> {
         match try!(self.translate_raw(pon, bus)).downcast::<T>() {
@@ -161,6 +177,22 @@ impl PonTranslater {
             &Pon::Nil => Ok(Box::new(()))
         }
     }
+    pub fn get_docs(&self) -> Vec<PonDocModule> {
+        let mut modules: Vec<PonDocModule> = self.module_docs.iter()
+            .map(|(module, module_doc)| {
+                let mut funs: Vec<PonDocFunction> = self.functions.values()
+                    .filter_map(|v| if &v.doc.module == module { Some(v.doc.clone()) } else { None })
+                    .collect();
+                funs.sort_by_key(|x| x.name.clone());
+                PonDocModule {
+                    name: module.to_string(),
+                    doc: module_doc.to_string(),
+                    functions: funs
+                }
+            }).collect();
+        modules.sort_by_key(|x| x.name.clone());
+        modules
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -173,17 +205,6 @@ pub enum PonTranslaterErr {
     ValueOfUnexpectedType { expected_type: String, found_value: String },
     EnumValueError { expected_on_of: Vec<String>, found: String },
     Generic(String)
-}
-impl PonTranslaterErr {
-    fn value_unexpected_type<ExpectedT>(pon_value: &Pon) -> PonTranslaterErr {
-        let to_type_name = unsafe {
-            ::std::intrinsics::type_name::<ExpectedT>()
-        };
-        PonTranslaterErr::ValueOfUnexpectedType {
-            found_value: pon_value.to_string(),
-            expected_type: to_type_name.to_string()
-        }
-    }
 }
 
 impl ToString for PonTranslaterErr {

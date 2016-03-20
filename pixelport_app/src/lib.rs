@@ -99,10 +99,16 @@ impl App {
             &TimeProgression::Fixed { .. } => Timespec::new(0, 0)
         };
         let start_time_inner = start_time.clone();
-        translater.register_function("time", move |_, _, _| {
+        translater.register_function(move |_, _, _| {
             let t: f32 = (time::get_time() - start_time_inner).num_milliseconds() as f32 / 1000.0;
             Ok(Box::new(t))
-        }, "time");
+        }, PonDocFunction {
+            name: "time".to_string(),
+            target_type_name: "f32".to_string(),
+            arg: PonDocMatcher::Nil,
+            module: "Utils".to_string(),
+            doc: "Get the current time".to_string()
+        });
 
         let mut document = match &opts.document {
             &DocumentDescription::Empty => Document::new_with_root(translater),
@@ -110,9 +116,6 @@ impl App {
         };
 
         viewport.set_doc(&mut document);
-
-        println!("## READY FOR CONNECTIONS ##");
-        println!("{{ \"port\": {} }}", tcpinterface.port());
 
         App {
             document: document,

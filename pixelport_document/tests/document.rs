@@ -38,8 +38,9 @@ fn test_property_reference_straight() {
 #[test]
 fn test_property_reference_object() {
     let mut translater = PonTranslater::new();
-    pon_register_functions!(translater =>
-        testy({ some: (f32), }) {} f32 => { Ok(some*2.0) }
+    pon_register_functions!("Test", translater =>
+        "Helps test",
+        testy({ some: (f32), }) f32 => { Ok(some*2.0) }
     );
     let mut doc = Document::from_string(translater, r#"<Entity name="tmp" x="5.0" y="testy { some: @this.x }" />"#).unwrap();
     let ent = doc.get_entity_by_name("tmp").unwrap();
@@ -52,7 +53,13 @@ fn test_property_reference_transfer() {
     translater.register_function(|arg, translater, doc| {
         let x = translater.translate::<f32>(arg, doc).unwrap();
         Ok(Box::new(x * 2.0))
-    }, PonDocFunction { name: "something".to_string(), target_type_name: "f32".to_string(), arg: PonDocMatcher::Value { typ: "f32".to_string() } });
+    }, PonDocFunction {
+        name: "something".to_string(),
+        module: "Test".to_string(),
+        doc: "Helps test".to_string(),
+        target_type_name: "f32".to_string(),
+        arg: PonDocMatcher::Value { typ: "f32".to_string() },
+    });
     let mut doc = Document::from_string(translater, r#"<Entity name="tmp" x="5.0" y="something @this.x" />"#).unwrap();
     let ent = doc.get_entity_by_name("tmp").unwrap();
     assert_eq!(doc.get_property::<f32>(ent, "y").unwrap(), 10.0);
@@ -61,8 +68,9 @@ fn test_property_reference_transfer() {
 #[test]
 fn test_property_reference_array() {
     let mut translater = PonTranslater::new();
-    pon_register_functions!(translater =>
-        testy(some: [f32]) {} f32 => { Ok(some[0]*2.0) }
+    pon_register_functions!("Test", translater =>
+        "Helps test",
+        testy(some: [f32]) f32 => { Ok(some[0]*2.0) }
     );
     let mut doc = Document::from_string(translater, r#"<Entity name="tmp" x="5.0" y="testy [@this.x]" />"#).unwrap();
     let ent = doc.get_entity_by_name("tmp").unwrap();
@@ -72,8 +80,9 @@ fn test_property_reference_array() {
 #[test]
 fn test_property_array_reference() {
     let mut translater = PonTranslater::new();
-    pon_register_functions!(translater =>
-        testy(some: [f32]) {} f32 => { Ok(some[0]*2.0) }
+    pon_register_functions!("Test", translater =>
+        "Helps test",
+        testy(some: [f32]) f32 => { Ok(some[0]*2.0) }
     );
     let mut doc = Document::from_string(translater, r#"<Entity name="tmp" x="[5.0]" y="testy @this.x" />"#).unwrap();
     let ent = doc.get_entity_by_name("tmp").unwrap();

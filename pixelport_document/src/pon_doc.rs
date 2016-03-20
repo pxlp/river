@@ -134,14 +134,16 @@ impl PonDocMatcher {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PonDocFunction {
+    pub module: String,
     pub name: String,
     pub target_type_name: String,
-    pub arg: PonDocMatcher
+    pub arg: PonDocMatcher,
+    pub doc: String
 }
 
 impl PonDocFunction {
     pub fn generate_md(&self) -> String {
-        format!(r#"## {name}
+        format!(r#"### {name}
 ```pon
 {name} {arg_usage}
 
@@ -149,5 +151,19 @@ impl PonDocFunction {
 ```
 
 "#, name=self.name, arg_usage=self.arg.generate_usage(0), returns=self.target_type_name)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PonDocModule {
+    pub name: String,
+    pub doc: String,
+    pub functions: Vec<PonDocFunction>
+}
+
+impl PonDocModule {
+    pub fn generate_md(&self) -> String {
+        let funs: Vec<String> = self.functions.iter().map(|f| f.generate_md()).collect();
+        format!("## {}\n\n{}\n\n{}", self.name, self.doc, funs.join("\n"))
     }
 }

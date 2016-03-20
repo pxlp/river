@@ -70,7 +70,7 @@ pub struct PonDocMapField {
 
 impl PonDocMapField {
     pub fn generate_usage(&self, indentation: usize) -> String {
-        format!("{}{}: {}{}{}{}", "".pad_to_width(indentation), self.var_name, self.value.generate_usage(indentation),
+        format!("{}{}: {},{}{}{}", "".pad_to_width(indentation), self.var_name, self.value.generate_usage(indentation),
             if self.optional || self.default.is_some() {
                 " //".to_string()
             } else {
@@ -121,7 +121,7 @@ impl PonDocMatcher {
             &PonDocMatcher::Object { ref typ } => format!(r#"{{ <key 1>: <{}>, ... }}"#, typ),
             &PonDocMatcher::Map(ref fields) => {
                 let fields: Vec<String> = fields.iter().map(|field| field.generate_usage(indentation + 2)).collect();
-                format!("{{\n{}\n}}", fields.join(",\n"))
+                format!("{{\n{}\n}}", fields.join("\n"))
             },
             &PonDocMatcher::Enum(ref options) => {
                 let options: Vec<String> = options.iter().map(|option| option.generate_usage()).collect();

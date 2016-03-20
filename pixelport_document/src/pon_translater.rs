@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use pon::*;
 use bus::*;
+use pon_doc::*;
 
 
 #[macro_export]
@@ -78,65 +79,6 @@ macro_rules! pon_expand {
 
 
 #[macro_export]
-macro_rules! pon_doc_expand_map {
-    ($fields:expr, { }) => ();
-    ($fields:expr, { $name:ident : $inner:tt, $($rest:tt)* }) => (
-        $fields.push(PonDocMapField {
-            var_name: stringify!($name).to_string(),
-            optional: false,
-            default: None,
-            value: pon_doc_expand!($inner)
-        });
-        pon_doc_expand_map!($fields, { $($rest)* })
-    );
-    ($fields:expr, { $name:ident : $inner:tt optional, $($rest:tt)* }) => (
-        $fields.push(PonDocMapField {
-            var_name: stringify!($name).to_string(),
-            optional: true,
-            default: None,
-            value: pon_doc_expand!($inner)
-        });
-        pon_doc_expand_map!($fields, { $($rest)* })
-    );
-    ($fields:expr, { $name:ident : $inner:tt | $default:expr, $($rest:tt)* }) => (
-        $fields.push(PonDocMapField {
-            var_name: stringify!($name).to_string(),
-            optional: false,
-            default: Some(stringify!($default).to_string()),
-            value: pon_doc_expand!($inner)
-        });
-        pon_doc_expand_map!($fields, { $($rest)* })
-    );
-}
-
-#[macro_export]
-macro_rules! pon_doc_expand {
-    () => ($crate::pon_translater::PonDocMatcher::Nil);
-    (( enum { $($id:expr => $val:expr,)+ } )) => ({
-        $crate::pon_translater::PonDocMatcher::Enum(vec![$(
-            PonDocEnumOption { name: $id.to_string() },
-        )+])
-    });
-    ({ $typ:ty }) => ({
-        $crate::pon_translater::PonDocMatcher::Object { typ: stringify!($typ).to_string() }
-    });
-    ({ $($rest:tt)* }) => ({
-        let mut fields = Vec::new();
-        pon_doc_expand_map!(fields, { $($rest)* });
-        $crate::pon_translater::PonDocMatcher::Map(fields)
-    });
-    ([ $typ:ty ]) => ({
-        $crate::pon_translater::PonDocMatcher::Array { typ: stringify!($typ).to_string() }
-    });
-    (( $typ:ty )) => (
-        $crate::pon_translater::PonDocMatcher::Value { typ: stringify!($typ).to_string() }
-    );
-    ($name:ident : $t:tt) => (
-        $crate::pon_translater::PonDocMatcher::Capture { var_name: stringify!($name).to_string(), value: Box::new(pon_doc_expand!($t)) }
-    );
-}
-
-#[macro_export]
 macro_rules! pon_register_functions {
     ($translater:expr => $($func_name:ident($($args:tt)*) {$($env_ident:ident: $env:expr),*} $ret:ty => $body:block)*) => (
         $({
@@ -148,7 +90,7 @@ macro_rules! pon_register_functions {
                     Err(err) => Err(err)
                 }
             }
-            let doc = $crate::pon_translater::PonDocFunction {
+            let doc = $crate::pon_doc::PonDocFunction {
                 name: stringify!($func_name).to_string(),
                 target_type_name: stringify!($ret).to_string(),
                 arg: pon_doc_expand!($($args)*)
@@ -156,46 +98,6 @@ macro_rules! pon_register_functions {
             $translater.register_function($func_name, doc);
         })*
     );
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct PonDocMapField {
-    pub var_name: String,
-    pub optional: bool,
-    pub default: Option<String>,
-    pub value: PonDocMatcher
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct PonDocEnumOption {
-    pub name: String
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum PonDocMatcher {
-    Nil,
-    Value {
-        typ: String
-    },
-    Array {
-        typ: String
-    },
-    Object {
-        typ: String
-    },
-    Map(Vec<PonDocMapField>),
-    Enum(Vec<PonDocEnumOption>),
-    Capture {
-        var_name: String,
-        value: Box<PonDocMatcher>
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct PonDocFunction {
-    pub name: String,
-    pub target_type_name: String,
-    pub arg: PonDocMatcher
 }
 
 struct PonFn {
@@ -280,17 +182,6 @@ pub enum PonTranslaterErr {
     ValueOfUnexpectedType { expected_type: String, found_value: String },
     EnumValueError { expected_on_of: Vec<String>, found: String },
     Generic(String)
-}
-impl PonTranslaterErr {
-    fn value_unexpected_type<ExpectedT>(pon_value: &Pon) -> PonTranslaterErr {
-        let to_type_name = unsafe {
-            ::std::intrinsics::type_name::<ExpectedT>()
-        };
-        PonTranslaterErr::ValueOfUnexpectedType {
-            found_value: pon_value.to_string(),
-            expected_type: to_type_name.to_string()
-        }
-    }
 }
 
 impl ToString for PonTranslaterErr {

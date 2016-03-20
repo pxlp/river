@@ -20,8 +20,8 @@ libc = "0.2"
 [dependencies.pixelport_document]
 path = "../pixelport_document"
 
-[dependencies.pixelport_util]
-path = "../pixelport_util"
+[dependencies.pixelport_std]
+path = "../pixelport_std"
 
 [dependencies.pixelport_animation]
 path = "../pixelport_animation"

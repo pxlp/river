@@ -17,10 +17,10 @@ dependencies = [
  "pixelport_models 0.1.0",
  "pixelport_picking 0.1.0",
  "pixelport_resources 0.1.0",
+ "pixelport_std 0.1.0",
  "pixelport_subdoc 0.1.0",
  "pixelport_tcpinterface 0.1.0",
  "pixelport_template 0.1.0",
- "pixelport_util 0.1.0",
  "pixelport_viewport 0.1.0",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.34 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -684,7 +684,7 @@ dependencies = [
  "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "pixelport_document 0.1.0",
- "pixelport_util 0.1.0",
+ "pixelport_std 0.1.0",
 ]
 
 [[package]]
@@ -738,7 +738,7 @@ dependencies = [
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "pixelport_bounding 0.1.0",
  "pixelport_document 0.1.0",
- "pixelport_util 0.1.0",
+ "pixelport_std 0.1.0",
 ]
 
 [[package]]
@@ -760,6 +760,15 @@ dependencies = [
  "pixelport_models 0.1.0",
  "ppromise 0.1.0",
  "regex 0.1.58 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "pixelport_std"
+version = "0.1.0"
+dependencies = [
+ "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pixelport_document 0.1.0",
+ "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -801,15 +810,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pixelport_util"
-version = "0.1.0"
-dependencies = [
- "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pixelport_document 0.1.0",
- "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "pixelport_viewport"
 version = "0.1.0"
 dependencies = [
@@ -822,8 +822,8 @@ dependencies = [
  "pixelport_document 0.1.0",
  "pixelport_models 0.1.0",
  "pixelport_resources 0.1.0",
+ "pixelport_std 0.1.0",
  "pixelport_template 0.1.0",
- "pixelport_util 0.1.0",
  "pixelport_viewport_api 0.1.0",
  "ppromise 0.1.0",
  "time 0.1.34 (registry+https://github.com/rust-lang/crates.io-index)",

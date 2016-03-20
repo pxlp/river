@@ -8,6 +8,23 @@ use cgmath::*;
 use pixelport_document::*;
 use std::f32;
 
+use std::hash::Hasher;
+use std::hash::Hash;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Rectangle {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32
+}
+impl Hash for Rectangle {
+    fn hash<H>(&self, state: &mut H) where H: Hasher {
+        let str = format!("{:?}", self);
+        str.hash(state);
+    }
+}
+
 // Standard invert (at the time of writing) doesn't allow small determinants, see https://github.com/bjz/cgmath-rs/issues/210
 pub fn mat4_invert(mat: &Matrix4<f32>) -> Matrix4<f32> {
     let det = mat.determinant();
@@ -146,7 +163,7 @@ pub fn construct_shadow_camera(decomposed_camera: &DecomposedCamera, cascade_ind
 }
 
 
-pub fn pon_util(translater: &mut PonTranslater) {
+pub fn pon_std(translater: &mut PonTranslater) {
     pon_register_functions!("Standard Library", translater =>
 
         "Generate random float",
@@ -429,8 +446,8 @@ pub fn pon_util(translater: &mut PonTranslater) {
             y: (f32) | 0.0,
             width: (f32),
             height: (f32),
-        }) pixelport_document::Rectangle => {
-            Ok(pixelport_document::Rectangle { x: x, y: y, width: width, height: height })
+        }) Rectangle => {
+            Ok(Rectangle { x: x, y: y, width: width, height: height })
         }
 
     );
@@ -439,7 +456,7 @@ pub fn pon_util(translater: &mut PonTranslater) {
 #[test]
 fn test_translate_vec3() {
     let mut translater = PonTranslater::new();
-    pon_util(&mut translater);
+    pon_std(&mut translater);
     let doc = Document::new(translater);
     let pon = Pon::from_string("vec3 { x: 1, y: 2, z: 0 }").unwrap();
     assert_eq!(doc.translater.translate::<Vector3<f32>>(&pon, &doc.bus), Ok(Vector3::new(1.0, 2.0, 0.0)))
@@ -448,7 +465,7 @@ fn test_translate_vec3() {
 #[test]
 fn test_translate_vec3_defaults() {
     let mut translater = PonTranslater::new();
-    pon_util(&mut translater);
+    pon_std(&mut translater);
     let doc = Document::new(translater);
     let pon = Pon::from_string("vec3 { x: 1, z: 0 }").unwrap();
     assert_eq!(doc.translater.translate::<Vector3<f32>>(&pon, &doc.bus), Ok(Vector3::new(1.0, 0.0, 0.0)))
@@ -457,7 +474,7 @@ fn test_translate_vec3_defaults() {
 #[test]
 fn test_translate_matrix() {
     let mut translater = PonTranslater::new();
-    pon_util(&mut translater);
+    pon_std(&mut translater);
     let doc = Document::new(translater);
     let pon = Pon::from_string("matrix [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]").unwrap();
     assert_eq!(doc.translater.translate::<Matrix4<f32>>(&pon, &doc.bus), Ok(Matrix4::new(0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0)))
@@ -466,7 +483,7 @@ fn test_translate_matrix() {
 #[test]
 fn test_translate_matrix_translate() {
     let mut translater = PonTranslater::new();
-    pon_util(&mut translater);
+    pon_std(&mut translater);
     let doc = Document::new(translater);
     let pon = Pon::from_string("translate vec3 { x: 1.0 }").unwrap();
     assert_eq!(doc.translater.translate::<Matrix4<f32>>(&pon, &doc.bus),
@@ -476,7 +493,7 @@ fn test_translate_matrix_translate() {
 #[test]
 fn test_translate_matrix_lookat() {
     let mut translater = PonTranslater::new();
-    pon_util(&mut translater);
+    pon_std(&mut translater);
     let doc = Document::new(translater);
     let pon = Pon::from_string("lookat { eye: vec3 { x: 1 }, center: vec3 { y: -2 } }").unwrap();
     assert_eq!(doc.translater.translate::<Matrix4<f32>>(&pon, &doc.bus),
@@ -486,7 +503,7 @@ fn test_translate_matrix_lookat() {
 #[test]
 fn test_translate_matrix_mul() {
     let mut translater = PonTranslater::new();
-    pon_util(&mut translater);
+    pon_std(&mut translater);
     let doc = Document::new(translater);
     let pon = Pon::from_string("mul [translate vec3 { x: 1.0 }, translate vec3 { x: 1.0, y: -4.0 } ]").unwrap();
     assert_eq!(doc.translater.translate::<Matrix4<f32>>(&pon, &doc.bus),

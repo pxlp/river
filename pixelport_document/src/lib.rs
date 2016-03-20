@@ -36,19 +36,3 @@ pub use selection::*;
 pub use entity_match::*;
 pub use bus::*;
 pub use topic::*;
-use std::hash::Hasher;
-use std::hash::Hash;
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Rectangle {
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-    pub height: f32
-}
-impl Hash for Rectangle {
-    fn hash<H>(&self, state: &mut H) where H: Hasher {
-        let str = format!("{:?}", self);
-        str.hash(state);
-    }
-}

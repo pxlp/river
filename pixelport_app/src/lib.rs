@@ -82,7 +82,7 @@ impl App {
         let mut models = pixelport_models::Models::new(opts.root_path.clone());
 
         let mut translater = PonTranslater::new();
-        pixelport_std::pon_util(&mut translater);
+        pixelport_std::pon_std(&mut translater);
         pixelport_bounding::pon_bounding(&mut translater);
         pixelport_models::pon_models(&mut translater);
         pixelport_models::init_logging();

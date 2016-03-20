@@ -7,6 +7,7 @@ extern crate cgmath;
 extern crate log;
 #[macro_use]
 extern crate mopa;
+extern crate pad;
 
 #[macro_use]
 pub mod hashmap_macro;

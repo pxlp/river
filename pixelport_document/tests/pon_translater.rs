@@ -18,6 +18,10 @@ fn test_empty() {
         target_type_name: "f32".to_string(),
         arg: PonDocMatcher::Nil
     }]);
+
+    println!("{}", translater.get_docs()[0].generate_md());
+    // panic!("x");
+    // assert_eq!(translater.get_docs()[0].generate_md(), r#""#);
 }
 
 #[test]
@@ -39,6 +43,8 @@ fn test_single() {
             })
         }
     }]);
+
+    println!("{}", translater.get_docs()[0].generate_md());
 }
 
 #[test]
@@ -66,6 +72,8 @@ fn test_map() {
             }
         ])
     }]);
+
+    println!("{}", translater.get_docs()[0].generate_md());
 }
 
 #[test]
@@ -102,6 +110,8 @@ fn test_map_with_default() {
             }
         ])
     }]);
+
+    println!("{}", translater.get_docs()[0].generate_md());
 }
 
 #[test]
@@ -141,6 +151,8 @@ fn test_map_with_optional() {
             }
         ])
     }]);
+
+    println!("{}", translater.get_docs()[0].generate_md());
 }
 
 #[test]
@@ -162,6 +174,8 @@ fn test_arr() {
             })
         }
     }]);
+
+    println!("{}", translater.get_docs()[0].generate_md());
 }
 
 #[test]
@@ -189,6 +203,8 @@ fn test_map_with_array() {
             }
         ])
     }]);
+
+    println!("{}", translater.get_docs()[0].generate_md());
 }
 
 #[test]
@@ -210,6 +226,8 @@ fn test_map_as_whole() {
             })
         }
     }]);
+
+    println!("{}", translater.get_docs()[0].generate_md());
 }
 
 #[test]
@@ -247,6 +265,8 @@ fn test_enum() {
             ]))
         }
     }]);
+
+    println!("{}", translater.get_docs()[0].generate_md());
 }
 
 #[test]

@@ -99,10 +99,10 @@ impl App {
             &TimeProgression::Fixed { .. } => Timespec::new(0, 0)
         };
         let start_time_inner = start_time.clone();
-        translater.register_function("time", move |_, _, _| {
+        translater.register_function(move |_, _, _| {
             let t: f32 = (time::get_time() - start_time_inner).num_milliseconds() as f32 / 1000.0;
             Ok(Box::new(t))
-        }, "time");
+        }, PonDocFunction { name: "time".to_string(), target_type_name: "f32".to_string(), arg: PonDocMatcher::Nil });
 
         let mut document = match &opts.document {
             &DocumentDescription::Empty => Document::new_with_root(translater),

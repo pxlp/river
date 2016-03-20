@@ -34,6 +34,7 @@ Options:
   --height=<px>          Window height.
   --fixedtimestep=<ms>   Fix the frame time step to x ms.
   --maxfps=<ms>          Max fps [default: 600].
+  --genpondocs           Generate Pon documentation and exit.
 ";
 
 #[derive(Debug, RustcDecodable)]
@@ -48,6 +49,7 @@ pub struct Args {
     flag_height: Option<u32>,
     flag_fixedtimestep: Option<u32>,
     flag_maxfps: Option<f32>,
+    flag_genpondocs: bool,
 }
 
 fn main() {
@@ -90,6 +92,14 @@ fn main() {
             None => None
         }
     });
+
+    if args.flag_genpondocs {
+        let mut f = File::create("pon_docs.md").unwrap();
+        let docs: Vec<String> = app.document.translater.get_docs().iter().map(|doc| doc.generate_md()).collect();
+        f.write_all(&docs.join("\n\n").into_bytes()).unwrap();
+        return;
+    }
+
     info!("Starting main loop");
     while {
         app.update()

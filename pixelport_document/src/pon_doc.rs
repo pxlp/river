@@ -1,4 +1,4 @@
-
+use pad::{PadStr, Alignment};
 
 #[macro_export]
 macro_rules! pon_doc_expand_map {
@@ -68,9 +68,28 @@ pub struct PonDocMapField {
     pub value: PonDocMatcher
 }
 
+impl PonDocMapField {
+    pub fn generate_usage(&self, indentation: usize) -> String {
+        format!("{}{}: {}{}{}{}", "".pad_to_width(indentation), self.var_name, self.value.generate_usage(indentation),
+            if self.optional || self.default.is_some() {
+                " //".to_string()
+            } else {
+                "".to_string()
+            },
+            if self.optional { " Optional." } else { "" },
+            if let &Some(ref default) = &self.default { format!(" Defaults to {}.", default) } else { "".to_string() })
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct PonDocEnumOption {
     pub name: String
+}
+
+impl PonDocEnumOption {
+    pub fn generate_usage(&self) -> String {
+        format!(" '{}' ", self.name)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -93,9 +112,42 @@ pub enum PonDocMatcher {
     }
 }
 
+impl PonDocMatcher {
+    pub fn generate_usage(&self, indentation: usize) -> String {
+        match self {
+            &PonDocMatcher::Nil => "()".to_string(),
+            &PonDocMatcher::Value { ref typ } => format!("<{}>", typ),
+            &PonDocMatcher::Array { ref typ } => format!("[ <{}>, ... ]", typ),
+            &PonDocMatcher::Object { ref typ } => format!(r#"{{ <key 1>: <{}>, ... }}"#, typ),
+            &PonDocMatcher::Map(ref fields) => {
+                let fields: Vec<String> = fields.iter().map(|field| field.generate_usage(indentation + 2)).collect();
+                format!("{{\n{}\n}}", fields.join(",\n"))
+            },
+            &PonDocMatcher::Enum(ref options) => {
+                let options: Vec<String> = options.iter().map(|option| option.generate_usage()).collect();
+                format!("<{}>", options.join("/"))
+            },
+            &PonDocMatcher::Capture { ref var_name, ref value } => format!("{}", value.generate_usage(indentation))
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct PonDocFunction {
     pub name: String,
     pub target_type_name: String,
     pub arg: PonDocMatcher
+}
+
+impl PonDocFunction {
+    pub fn generate_md(&self) -> String {
+        format!(r#"## {name}
+```pon
+{name} {arg_usage}
+
+// Returns: {returns}
+```
+
+"#, name=self.name, arg_usage=self.arg.generate_usage(0), returns=self.target_type_name)
+    }
 }

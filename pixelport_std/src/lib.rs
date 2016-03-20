@@ -505,7 +505,7 @@ fn test_translate_matrix_mul() {
     let mut translater = PonTranslater::new();
     pon_std(&mut translater);
     let doc = Document::new(translater);
-    let pon = Pon::from_string("mul [translate vec3 { x: 1.0 }, translate vec3 { x: 1.0, y: -4.0 } ]").unwrap();
+    let pon = Pon::from_string("matrix_mul [translate vec3 { x: 1.0 }, translate vec3 { x: 1.0, y: -4.0 } ]").unwrap();
     assert_eq!(doc.translater.translate::<Matrix4<f32>>(&pon, &doc.bus),
         Ok(Matrix4::from_translation(Vector3::new(2.0, -4.0, 0.0))));
 }

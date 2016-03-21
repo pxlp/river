@@ -25,7 +25,7 @@ macro_rules! pon_doc_expand_map {
         $fields.push(PonDocMapField {
             var_name: stringify!($name).to_string(),
             optional: false,
-            default: Some(stringify!($default).to_string()),
+            default: Some($default.to_pon().to_string()),
             value: pon_doc_expand!($inner)
         });
         pon_doc_expand_map!($fields, { $($rest)* })

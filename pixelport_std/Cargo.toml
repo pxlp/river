@@ -1,0 +1,11 @@
+[package]
+name = "pixelport_std"
+version = "0.1.0"
+authors = ["Fredrik Noren <fredrik.jw.noren@gmail.com>"]
+
+[dependencies]
+cgmath = "0.7"
+rand = "0.3"
+
+[dependencies.pixelport_document]
+path = "../pixelport_document"

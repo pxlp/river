@@ -1,5 +1,5 @@
 extern crate pixelport_document;
-extern crate pixelport_util;
+extern crate pixelport_std;
 extern crate pixelport_animation;
 extern crate pixelport_viewport;
 extern crate pixelport_template;
@@ -82,7 +82,7 @@ impl App {
         let mut models = pixelport_models::Models::new(opts.root_path.clone());
 
         let mut translater = PonTranslater::new();
-        pixelport_util::pon_util(&mut translater);
+        pixelport_std::pon_std(&mut translater);
         pixelport_bounding::pon_bounding(&mut translater);
         pixelport_models::pon_models(&mut translater);
         pixelport_models::init_logging();

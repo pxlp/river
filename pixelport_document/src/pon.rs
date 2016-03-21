@@ -202,6 +202,11 @@ impl ToPon for String {
         Pon::String(self.clone())
     }
 }
+impl<'a> ToPon for &'a str {
+    fn to_pon(&self) -> Pon {
+        Pon::String(self.to_string())
+    }
+}
 impl<T: ToPon> ToPon for Vec<T> {
     fn to_pon(&self) -> Pon {
         Pon::Array(self.iter().map(|v| v.to_pon()).collect())

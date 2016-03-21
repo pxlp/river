@@ -102,7 +102,7 @@ fn test_map_with_default() {
             PonDocMapField {
                 var_name: "thing".to_string(),
                 optional: false,
-                default: Some("4.0".to_string()),
+                default: Some("4".to_string()),
                 value: PonDocMatcher::Value {
                     typ: "f32".to_string()
                 }

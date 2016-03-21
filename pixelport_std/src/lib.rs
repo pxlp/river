@@ -4,6 +4,9 @@ extern crate rand;
 #[macro_use]
 extern crate pixelport_document;
 
+pub mod ordered_float;
+pub use ordered_float::*;
+
 use cgmath::*;
 use pixelport_document::*;
 use std::f32;

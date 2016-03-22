@@ -50,8 +50,8 @@ fn test_example(name: &str) {
 }
 
 #[test]
-fn test_examples_box() {
-    test_example("box");
+fn test_examples_basic() {
+    test_example("basic");
 }
 
 #[test]
@@ -77,7 +77,7 @@ fn test_examples_cascading_shadow_maps() {
 
 #[test]
 fn test_visualize_entity_renderer_bounding() {
-    let mut app = setup_app("box");
+    let mut app = setup_app("basic");
     app.viewport.visualize_entity_bounding = Some(3);
     app.update();
     compare_screenshot("viz_bounding", &app);

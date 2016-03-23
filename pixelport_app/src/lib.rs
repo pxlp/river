@@ -204,7 +204,7 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
             Ok(ts) => {
                 match ts.save_png(Path::new(&path), 0) {
                     Ok(_) => Ok(()),
-                    Err(err) => Err(format!("Failed to save screenshot: {:?}", err))
+                    Err(err) => Err(format!("Failed to save screenshot to file {:?}: {:?}", path, err))
                 }
             },
             Err(err) => Err(format!("Failed to create screenshot: {:?}", err))

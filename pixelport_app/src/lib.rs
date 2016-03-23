@@ -286,6 +286,9 @@ impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnviro
             Err(format!("No such texture: {}", id))
         }
     }
+    fn await_all_resources(&mut self) {
+        self.resources.await_all();
+    }
 }
 
 #[no_mangle]

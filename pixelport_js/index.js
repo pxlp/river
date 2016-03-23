@@ -201,6 +201,12 @@ class Pixelport extends EventEmitter {
     }).then(res => res.RawImage);
   }
 
+  awaitAllResources() {
+    return this._request({
+      AwaitAllResources: []
+    });
+  }
+
   shutdown() {
     this.process.kill();
   }

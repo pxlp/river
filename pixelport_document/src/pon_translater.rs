@@ -52,6 +52,11 @@ macro_rules! pon_expand {
             })
         }
     });
+    // Whenever you encounter a Pon, it basically means "stop translating here, I'll take over and
+    // proces it myself from here on". Hence the special case.
+    ($pon:expr, $translater:expr, $bus:expr => { Pon }) => ({
+        try!($translater.translate::<::std::collections::HashMap<String, Pon>>($pon, $bus))
+    });
     ($pon:expr, $translater:expr, $bus:expr => { $typ:ty }) => ({
         let mut map = HashMap::new();
         for (k, v) in try!($translater.translate::<::std::collections::HashMap<String, Pon>>($pon, $bus)).iter() {

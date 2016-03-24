@@ -75,7 +75,10 @@ impl App {
         let mut animation = pixelport_animation::AnimationSubSystem::new();
         let mut resources = pixelport_resources::ResourceStorage::new(opts.root_path.clone());
         let mut viewport = pixelport_viewport::ViewportSubSystem::new(opts.root_path.clone(), &opts.viewport, &mut resources);
-        let mut tcpinterface = pixelport_tcpinterface::TCPInterfaceSubSystem::new(opts.port);
+        let mut tcpinterface = pixelport_tcpinterface::TCPInterfaceSubSystem::new(pixelport_tcpinterface::TCPInterfaceSubSystemOptions {
+            port: opts.port,
+            write_frames: true
+        });
         let mut picking = pixelport_picking::PickingSubSystem::new();
         let mut culling = pixelport_culling::CullingSubSystem::new();
         let mut layout = pixelport_layout::LayoutSubSystem::new();
@@ -90,6 +93,7 @@ impl App {
         template.on_init(&mut translater);
         animation.on_init(&mut translater);
         viewport.on_init(&mut translater, &mut template);
+        tcpinterface.init(&mut translater);
         picking.on_init(&mut translater);
         culling.on_init(&mut translater);
         layout.on_init(&mut translater);
@@ -161,11 +165,12 @@ impl App {
         self.layout.on_update(&mut self.document);
         self.picking.on_update(&mut self.document);
         self.viewport.on_update(&mut self.document, dtime, &mut self.resources, &mut self.models);
-        self.tcpinterface.on_update(&mut self.document, &mut TCPInterfaceEnvironment {
-            viewport: &mut self.viewport,
-            resources: &mut self.resources,
-            models: &mut self.models
-        });
+        let requests = self.tcpinterface.get_requests(&mut self.document);
+        for req in requests {
+            if let Some(resp) = self.tcpinterface.handle_request((*req.request).bus_value_clone(), req.socket_token, &mut self.document) {
+                self.tcpinterface.send_response(req.request_id, req.socket_token, resp);
+            }
+        }
         self.culling.on_update(&mut self.document);
         self.resources.update();
         if let Some(min_frame_ms) = self.min_frame_ms {
@@ -178,118 +183,118 @@ impl App {
         return true;
     }
 }
-
-struct TCPInterfaceEnvironment<'a> {
-    viewport: &'a mut pixelport_viewport::ViewportSubSystem,
-    resources: &'a mut pixelport_resources::ResourceStorage,
-    models: &'a mut pixelport_models::Models,
-}
-
-impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnvironment<'a> {
-    fn window_events(&self) -> Vec<glutin::Event> {
-        self.viewport.window_events.iter().map(|x| x.clone()).collect()
-    }
-    fn screenshot_to_png_data(&self) -> Result<Vec<u8>, String> {
-        match self.viewport.screenshot() {
-            Ok(ts) => {
-                let mut png_data = Vec::new();
-                ts.write_png(&mut png_data, 0);
-                Ok(png_data)
-            },
-            Err(err) => Err(format!("Failed to create screenshot: {:?}", err))
-        }
-    }
-    fn screenshot_to_file(&self, path: &str) -> Result<(), String> {
-        match self.viewport.screenshot() {
-            Ok(ts) => {
-                match ts.save_png(Path::new(&path), 0) {
-                    Ok(_) => Ok(()),
-                    Err(err) => Err(format!("Failed to save screenshot to file {:?}: {:?}", path, err))
-                }
-            },
-            Err(err) => Err(format!("Failed to create screenshot: {:?}", err))
-        }
-    }
-    fn dump_resources(&self) {
-        self.resources.dump();
-    }
-    fn entity_renderers_bounding(&mut self, entity_id: EntityId, doc: &mut Document) -> Result<HashMap<String, pixelport_tcpinterface::AABB>, String> {
-        match self.viewport.entity_renderers_bounding(self.resources, &mut self.models, entity_id, doc) {
-            Ok(boundings) => Ok(boundings.into_iter().map(|(renderer_name, bounding)| {
-                (renderer_name, pixelport_tcpinterface::AABB {
-                    screen_min: pixelport_tcpinterface::Vec3 {
-                        x: self.viewport.current_window_size.0 as f32 * (bounding.min.x + 1.0) / 2.0,
-                        y: self.viewport.current_window_size.1 as f32 * (bounding.min.y + 1.0) / 2.0,
-                        z: bounding.min.z
-                    },
-                    screen_max: pixelport_tcpinterface::Vec3 {
-                        x: self.viewport.current_window_size.0 as f32 * (bounding.max.x + 1.0) / 2.0,
-                        y: self.viewport.current_window_size.1 as f32 * (bounding.max.y + 1.0) / 2.0,
-                        z: bounding.max.z
-                    },
-                    viewport_min: bounding.min.into(),
-                    viewport_max: bounding.max.into(),
-                })
-            }).collect()),
-            Err(err) => Err(err)
-        }
-    }
-    fn set_visualize_entity_bounding(&mut self, entity_id: Option<EntityId>) {
-        self.viewport.visualize_entity_bounding = entity_id;
-    }
-    fn fake_window_event(&mut self, event: glutin::Event) {
-        self.viewport.fake_window_event(event);
-    }
-    fn get_renderer_stats(&mut self) -> Vec<pixelport_tcpinterface::messages::RendererStats> {
-        let mut stats = vec![];
-        for r in &self.viewport.renderers {
-            stats.push(pixelport_tcpinterface::messages::RendererStats {
-                name: r.desc.name.clone(),
-                n_renderables: r.n_renderables()
-            })
-        }
-        stats
-    }
-    fn list_textures(&mut self) -> Vec<pixelport_tcpinterface::messages::Texture> {
-        self.resources.gl_textures.iter().map(|(k, v)| {
-            pixelport_tcpinterface::messages::Texture {
-                name: format!("{:?}", k),
-                id: match v.value() {
-                    Some(v) => v.texture,
-                    None => 0
-                }
-            }
-        }).collect()
-    }
-    fn get_texture_content(&mut self, id: u32) -> Result<pixelport_tcpinterface::messages::RawImage, String> {
-        let t = self.resources.gl_textures.values().find(|v| {
-            if let Some(v) = v.value() {
-                v.texture == id
-            } else {
-                false
-            }
-        });
-        if let Some(t) = t {
-            if let Some(t) = t.value() {
-                let ts = t.to_texture_source();
-                Ok(pixelport_tcpinterface::messages::RawImage {
-                    content: ts.to_base64().unwrap(),
-                    width: t.width as u32,
-                    height: t.height as u32,
-                    pixel_format: t.format.to_pon_enum(),
-                    pixel_type: ts.content.pixel_type().to_pon_enum()
-                })
-            } else {
-                Err(format!("Texture still loading: {}", id))
-            }
-        } else {
-            Err(format!("No such texture: {}", id))
-        }
-    }
-    fn await_all_resources(&mut self) {
-        self.resources.await_all();
-    }
-}
+//
+// struct TCPInterfaceEnvironment<'a> {
+//     viewport: &'a mut pixelport_viewport::ViewportSubSystem,
+//     resources: &'a mut pixelport_resources::ResourceStorage,
+//     models: &'a mut pixelport_models::Models,
+// }
+//
+// impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnvironment<'a> {
+//     fn window_events(&self) -> Vec<glutin::Event> {
+//         self.viewport.window_events.iter().map(|x| x.clone()).collect()
+//     }
+//     fn screenshot_to_png_data(&self) -> Result<Vec<u8>, String> {
+//         match self.viewport.screenshot() {
+//             Ok(ts) => {
+//                 let mut png_data = Vec::new();
+//                 ts.write_png(&mut png_data, 0);
+//                 Ok(png_data)
+//             },
+//             Err(err) => Err(format!("Failed to create screenshot: {:?}", err))
+//         }
+//     }
+//     fn screenshot_to_file(&self, path: &str) -> Result<(), String> {
+//         match self.viewport.screenshot() {
+//             Ok(ts) => {
+//                 match ts.save_png(Path::new(&path), 0) {
+//                     Ok(_) => Ok(()),
+//                     Err(err) => Err(format!("Failed to save screenshot to file {:?}: {:?}", path, err))
+//                 }
+//             },
+//             Err(err) => Err(format!("Failed to create screenshot: {:?}", err))
+//         }
+//     }
+//     fn dump_resources(&self) {
+//         self.resources.dump();
+//     }
+//     fn entity_renderers_bounding(&mut self, entity_id: EntityId, doc: &mut Document) -> Result<HashMap<String, pixelport_tcpinterface::AABB>, String> {
+//         match self.viewport.entity_renderers_bounding(self.resources, &mut self.models, entity_id, doc) {
+//             Ok(boundings) => Ok(boundings.into_iter().map(|(renderer_name, bounding)| {
+//                 (renderer_name, pixelport_tcpinterface::AABB {
+//                     screen_min: pixelport_tcpinterface::Vec3 {
+//                         x: self.viewport.current_window_size.0 as f32 * (bounding.min.x + 1.0) / 2.0,
+//                         y: self.viewport.current_window_size.1 as f32 * (bounding.min.y + 1.0) / 2.0,
+//                         z: bounding.min.z
+//                     },
+//                     screen_max: pixelport_tcpinterface::Vec3 {
+//                         x: self.viewport.current_window_size.0 as f32 * (bounding.max.x + 1.0) / 2.0,
+//                         y: self.viewport.current_window_size.1 as f32 * (bounding.max.y + 1.0) / 2.0,
+//                         z: bounding.max.z
+//                     },
+//                     viewport_min: bounding.min.into(),
+//                     viewport_max: bounding.max.into(),
+//                 })
+//             }).collect()),
+//             Err(err) => Err(err)
+//         }
+//     }
+//     fn set_visualize_entity_bounding(&mut self, entity_id: Option<EntityId>) {
+//         self.viewport.visualize_entity_bounding = entity_id;
+//     }
+//     fn fake_window_event(&mut self, event: glutin::Event) {
+//         self.viewport.fake_window_event(event);
+//     }
+//     fn get_renderer_stats(&mut self) -> Vec<pixelport_tcpinterface::messages::RendererStats> {
+//         let mut stats = vec![];
+//         for r in &self.viewport.renderers {
+//             stats.push(pixelport_tcpinterface::messages::RendererStats {
+//                 name: r.desc.name.clone(),
+//                 n_renderables: r.n_renderables()
+//             })
+//         }
+//         stats
+//     }
+//     fn list_textures(&mut self) -> Vec<pixelport_tcpinterface::messages::Texture> {
+//         self.resources.gl_textures.iter().map(|(k, v)| {
+//             pixelport_tcpinterface::messages::Texture {
+//                 name: format!("{:?}", k),
+//                 id: match v.value() {
+//                     Some(v) => v.texture,
+//                     None => 0
+//                 }
+//             }
+//         }).collect()
+//     }
+//     fn get_texture_content(&mut self, id: u32) -> Result<pixelport_tcpinterface::messages::RawImage, String> {
+//         let t = self.resources.gl_textures.values().find(|v| {
+//             if let Some(v) = v.value() {
+//                 v.texture == id
+//             } else {
+//                 false
+//             }
+//         });
+//         if let Some(t) = t {
+//             if let Some(t) = t.value() {
+//                 let ts = t.to_texture_source();
+//                 Ok(pixelport_tcpinterface::messages::RawImage {
+//                     content: ts.to_base64().unwrap(),
+//                     width: t.width as u32,
+//                     height: t.height as u32,
+//                     pixel_format: t.format.to_pon_enum(),
+//                     pixel_type: ts.content.pixel_type().to_pon_enum()
+//                 })
+//             } else {
+//                 Err(format!("Texture still loading: {}", id))
+//             }
+//         } else {
+//             Err(format!("No such texture: {}", id))
+//         }
+//     }
+//     fn await_all_resources(&mut self) {
+//         self.resources.await_all();
+//     }
+// }
 
 #[no_mangle]
 pub extern "C" fn pixelport_new() -> *mut App {

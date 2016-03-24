@@ -34,229 +34,224 @@ class Pixelport extends EventEmitter {
     return str.replace(/\\\\/g, "\\").replace(/\\'/g, "'");
   }
 
-  _request(message) {
+  request(message) {
     var requestId = this.rpcIdCounter++;
+    message = message.replace(/\n/g, '');
     return new Promise((resolve, reject) => {
-      var cmd = {
-        Request: {
-          request_id: requestId,
-          request: message
-        }
-      };
       debug_request("id=%d, %o", requestId, message);
       this.pending[requestId] = { resolve: resolve, reject: reject };
-      this.stream.write(JSON.stringify(cmd) + '\r\n');
+      this.stream.write(requestId + ' ' + message + '\n');
     });
   }
-
-  setProperties(entitySelector, properties) {
-    Object.keys(properties).forEach(function(key) {
-      properties[key] = '' + properties[key]; // Make sure properties are strings
-    });
-    return this._request({
-      SetProperties: {
-        entity_selector: '' + entitySelector,
-        properties: properties
-      }
-    });
-  }
-
-  appendEntity(opts) {
-    opts.properties = opts.properties || {};
-    Object.keys(opts.properties).forEach(function(key) {
-      opts.properties[key] = '' + opts.properties[key]; // Make sure properties are strings
-    });
-    return this._request({
-      AppendEntity: {
-        parent_selector: opts.parentSelector,
-        type_name: opts.typeName,
-        properties: opts.properties,
-        entity_id: opts.entityId
-      }
-    }).then(function(resp) {
-      return resp.EntityAdded;
-    });
-  }
-
-  removeEntity(entitySelector) {
-    return this._request({
-      RemoveEntity: {
-        entity_selector: entitySelector
-      }
-    });
-  }
-
-  clearChildren(entitySelector) {
-    return this._request({
-      ClearChildren: {
-        entity_selector: entitySelector
-      }
-    });
-  }
-
-  subDocStreamCreate(opts) {
-    opts.id = opts.id || ('subdocstream-' + this.subdocStreamIdCounter++);
-    var subDocStream = new SubDocStream(this, opts.id);
-    this.subDocStreams[opts.id] = subDocStream;
-    this._request({
-      SubDocStreamCreate: {
-        id: opts.id,
-        selector: opts.selector,
-        property_regex: opts.property_regex
-      }
-    });
-    return subDocStream;
-  }
-
-  subDocStreamDestroy(id) {
-    return this._request({
-      SubDocStreamDestroy: {
-        id: id
-      }
-    });
-  }
-
-  reserveEntityIds(count) {
-    return this._request({
-      ReserveEntityIds: { count: count }
-    }).then(function(resp) {
-      return resp.EntityIdsReserved;
-    });
-  }
-
-  screenshot() {
-    return this._request({
-      Screenshot: []
-    }).then(function(resp) {
-      return resp.PngImage;
-    });
-  }
-
-  screenshotToFile(path) {
-    return this._request({
-      ScreenshotToFile: { path: path }
-    });
-  }
-
-  pause() {
-    return this._request({
-      Pause: []
-    });
-  }
-
-  cont() {
-    return this._request({
-      Continue: []
-    });
-  }
-
-  step() {
-    return this._request({
-      Step: []
-    });
-  }
-
-  viewportDumpResources() {
-    return this._request({
-      ViewportDumpResources: []
-    });
-  }
-
-
-  entityRenderersBounding(entitySelector) {
-    return this._request({
-      EntityRenderersBounding: {
-        entity_selector: entitySelector
-      }
-    }).then(function(resp) {
-      return resp.EntityRenderersBounding;
-    });
-  }
-
-  visualizeEntityRenderersBounding(entitySelector) {
-    return this._request({
-      VisualizeEntityRenderersBounding: {
-        entity_selector: entitySelector
-      }
-    });
-  }
-
-  fakeWindowEvent(event) {
-    return this._request({
-      FakeWindowEvent: {
-        event: event
-      }
-    });
-  }
-
-  listTextures() {
-    return this._request({
-      ListTextures: []
-    }).then(res => res.Textures);
-  }
-
-  getTextureContent(id) {
-    return this._request({
-      GetTextureContent: { id: id }
-    }).then(res => res.RawImage);
-  }
-
-  awaitAllResources() {
-    return this._request({
-      AwaitAllResources: []
-    });
-  }
+  //
+  // setProperties(entitySelector, properties) {
+  //   Object.keys(properties).forEach(function(key) {
+  //     properties[key] = '' + properties[key]; // Make sure properties are strings
+  //   });
+  //   return this._request({
+  //     SetProperties: {
+  //       entity_selector: '' + entitySelector,
+  //       properties: properties
+  //     }
+  //   });
+  // }
+  //
+  // appendEntity(opts) {
+  //   opts.properties = opts.properties || {};
+  //   Object.keys(opts.properties).forEach(function(key) {
+  //     opts.properties[key] = '' + opts.properties[key]; // Make sure properties are strings
+  //   });
+  //   return this._request({
+  //     AppendEntity: {
+  //       parent_selector: opts.parentSelector,
+  //       type_name: opts.typeName,
+  //       properties: opts.properties,
+  //       entity_id: opts.entityId
+  //     }
+  //   }).then(function(resp) {
+  //     return resp.EntityAdded;
+  //   });
+  // }
+  //
+  // removeEntity(entitySelector) {
+  //   return this._request({
+  //     RemoveEntity: {
+  //       entity_selector: entitySelector
+  //     }
+  //   });
+  // }
+  //
+  // clearChildren(entitySelector) {
+  //   return this._request({
+  //     ClearChildren: {
+  //       entity_selector: entitySelector
+  //     }
+  //   });
+  // }
+  //
+  // subDocStreamCreate(opts) {
+  //   opts.id = opts.id || ('subdocstream-' + this.subdocStreamIdCounter++);
+  //   var subDocStream = new SubDocStream(this, opts.id);
+  //   this.subDocStreams[opts.id] = subDocStream;
+  //   this._request({
+  //     SubDocStreamCreate: {
+  //       id: opts.id,
+  //       selector: opts.selector,
+  //       property_regex: opts.property_regex
+  //     }
+  //   });
+  //   return subDocStream;
+  // }
+  //
+  // subDocStreamDestroy(id) {
+  //   return this._request({
+  //     SubDocStreamDestroy: {
+  //       id: id
+  //     }
+  //   });
+  // }
+  //
+  // reserveEntityIds(count) {
+  //   return this._request({
+  //     ReserveEntityIds: { count: count }
+  //   }).then(function(resp) {
+  //     return resp.EntityIdsReserved;
+  //   });
+  // }
+  //
+  // screenshot() {
+  //   return this._request({
+  //     Screenshot: []
+  //   }).then(function(resp) {
+  //     return resp.PngImage;
+  //   });
+  // }
+  //
+  // screenshotToFile(path) {
+  //   return this._request({
+  //     ScreenshotToFile: { path: path }
+  //   });
+  // }
+  //
+  // pause() {
+  //   return this._request({
+  //     Pause: []
+  //   });
+  // }
+  //
+  // cont() {
+  //   return this._request({
+  //     Continue: []
+  //   });
+  // }
+  //
+  // step() {
+  //   return this._request({
+  //     Step: []
+  //   });
+  // }
+  //
+  // viewportDumpResources() {
+  //   return this._request({
+  //     ViewportDumpResources: []
+  //   });
+  // }
+  //
+  //
+  // entityRenderersBounding(entitySelector) {
+  //   return this._request({
+  //     EntityRenderersBounding: {
+  //       entity_selector: entitySelector
+  //     }
+  //   }).then(function(resp) {
+  //     return resp.EntityRenderersBounding;
+  //   });
+  // }
+  //
+  // visualizeEntityRenderersBounding(entitySelector) {
+  //   return this._request({
+  //     VisualizeEntityRenderersBounding: {
+  //       entity_selector: entitySelector
+  //     }
+  //   });
+  // }
+  //
+  // fakeWindowEvent(event) {
+  //   return this._request({
+  //     FakeWindowEvent: {
+  //       event: event
+  //     }
+  //   });
+  // }
+  //
+  // listTextures() {
+  //   return this._request({
+  //     ListTextures: []
+  //   }).then(res => res.Textures);
+  // }
+  //
+  // getTextureContent(id) {
+  //   return this._request({
+  //     GetTextureContent: { id: id }
+  //   }).then(res => res.RawImage);
+  // }
+  //
+  // awaitAllResources() {
+  //   return this._request({
+  //     AwaitAllResources: []
+  //   });
+  // }
 
   shutdown() {
     this.process.kill();
   }
-
-  // Helpers
-  waitForEntity(selector) {
-    return new Promise((resolve, reject) => {
-      let stream = this.subDocStreamCreate({ selector: selector });
-      stream.on('cycle', (changes) => {
-        if (changes.entities_added.length > 0) {
-          stream.destroy();
-          resolve();
-        }
-      });
-    });
-  }
-
-  waitForPropertyChange(selector, property) {
-    return new Promise((resolve, reject) => {
-      let stream = this.subDocStreamCreate({ selector: selector, property_regex: property });
-      stream.on('cycle', (changes) => {
-        if (changes.updated_properties.length > 0) {
-          stream.destroy();
-          resolve();
-        }
-      });
-    });
-  }
-
-  waitFrames(n) {
-    if (n === undefined) n = 1;
-    return new Promise((resolve, reject) => {
-      let cb = () => {
-        n--;
-        if (n == 0) {
-          this.removeListener('frame', cb);
-          resolve();
-        }
-      };
-      this.on('frame', cb);
-    });
-  }
-
-  fakeMoveMouse(position) {
-    return this.fakeWindowEvent({ MouseMoved: [position.x, position.y] });
-  }
-
-  fakeClick() {
-    return this.fakeWindowEvent({ MouseInput: { state: { Pressed: [] }, button: { Left: [] } } });
-  }
+  //
+  // // Helpers
+  // waitForEntity(selector) {
+  //   return new Promise((resolve, reject) => {
+  //     let stream = this.subDocStreamCreate({ selector: selector });
+  //     stream.on('cycle', (changes) => {
+  //       if (changes.entities_added.length > 0) {
+  //         stream.destroy();
+  //         resolve();
+  //       }
+  //     });
+  //   });
+  // }
+  //
+  // waitForPropertyChange(selector, property) {
+  //   return new Promise((resolve, reject) => {
+  //     let stream = this.subDocStreamCreate({ selector: selector, property_regex: property });
+  //     stream.on('cycle', (changes) => {
+  //       if (changes.updated_properties.length > 0) {
+  //         stream.destroy();
+  //         resolve();
+  //       }
+  //     });
+  //   });
+  // }
+  //
+  // waitFrames(n) {
+  //   if (n === undefined) n = 1;
+  //   return new Promise((resolve, reject) => {
+  //     let cb = () => {
+  //       n--;
+  //       if (n == 0) {
+  //         this.removeListener('frame', cb);
+  //         resolve();
+  //       }
+  //     };
+  //     this.on('frame', cb);
+  //   });
+  // }
+  //
+  // fakeMoveMouse(position) {
+  //   return this.fakeWindowEvent({ MouseMoved: [position.x, position.y] });
+  // }
+  //
+  // fakeClick() {
+  //   return this.fakeWindowEvent({ MouseInput: { state: { Pressed: [] }, button: { Left: [] } } });
+  // }
 
   _handleMessage(message) {
     if (message.Frame) {

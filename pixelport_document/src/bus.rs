@@ -9,14 +9,14 @@ use pon::*;
 use pon_translater::*;
 
 use std::fmt::Debug;
-pub trait BusValue: mopa::Any + Debug {
+pub trait BusValue: mopa::Any + Debug + Send {
     fn bus_value_equals(&self, other: &Box<BusValue>) -> bool;
     fn bus_value_clone(&self) -> Box<BusValue>;
     fn bus_value_type_name(&self) -> &str;
 }
 mopafy!(BusValue);
 
-impl<T: PartialEq + Reflect + 'static + Debug + Clone> BusValue for T {
+impl<T: PartialEq + Reflect + 'static + Debug + Clone + Send> BusValue for T {
     fn bus_value_equals(&self, other: &Box<BusValue>) -> bool {
         match (**other).downcast_ref::<T>() {
             Some(v) => v == self,

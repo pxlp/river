@@ -187,6 +187,12 @@ impl ToPon for Pon {
     }
 }
 
+
+impl ToPon for () {
+    fn to_pon(&self) -> Pon {
+        Pon::Nil
+    }
+}
 impl ToPon for bool {
     fn to_pon(&self) -> Pon {
         Pon::Boolean(*self)
@@ -195,6 +201,11 @@ impl ToPon for bool {
 impl ToPon for f32 {
     fn to_pon(&self) -> Pon {
         Pon::Number(*self)
+    }
+}
+impl ToPon for u64 {
+    fn to_pon(&self) -> Pon {
+        Pon::Number(*self as f32)
     }
 }
 impl ToPon for String {

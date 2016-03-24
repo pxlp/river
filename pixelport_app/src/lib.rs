@@ -181,15 +181,17 @@ impl App {
         }
         return true;
     }
-    pub fn handle_request(&mut self, request: Box<BusValue>, socket_token: pixelport_tcpinterface::SocketToken)
-            -> Result<Box<pixelport_tcpinterface::OutMessage>, pixelport_tcpinterface::RequestError> {
+    pub fn handle_request(&mut self, request: Box<BusValue>, socket_token: SocketToken)
+            -> Result<Box<OutMessage>, RequestError> {
         if let Some(resp) = self.tcpinterface.handle_request((*request).bus_value_clone(), socket_token, &mut self.document) {
-            return resp
+            return resp;
+        } else if let Some(resp) = self.viewport.handle_request((*request).bus_value_clone(), socket_token, &mut self.document) {
+            return resp;
         }
 
-        Err(pixelport_tcpinterface::RequestError {
+        Err(RequestError {
             request_id: "".to_string(),
-            error_type: pixelport_tcpinterface::RequestErrorType::BadRequest,
+            error_type: RequestErrorType::BadRequest,
             message: format!("No handler available for {:?}", request)
         })
     }
@@ -211,17 +213,6 @@ impl App {
 //                 let mut png_data = Vec::new();
 //                 ts.write_png(&mut png_data, 0);
 //                 Ok(png_data)
-//             },
-//             Err(err) => Err(format!("Failed to create screenshot: {:?}", err))
-//         }
-//     }
-//     fn screenshot_to_file(&self, path: &str) -> Result<(), String> {
-//         match self.viewport.screenshot() {
-//             Ok(ts) => {
-//                 match ts.save_png(Path::new(&path), 0) {
-//                     Ok(_) => Ok(()),
-//                     Err(err) => Err(format!("Failed to save screenshot to file {:?}: {:?}", path, err))
-//                 }
 //             },
 //             Err(err) => Err(format!("Failed to create screenshot: {:?}", err))
 //         }

@@ -24,6 +24,7 @@ pub mod entity_match;
 mod inverse_dependencies_counter;
 pub mod bus;
 pub mod topic;
+pub mod request;
 
 pub use pon::*;
 #[macro_use]
@@ -36,3 +37,4 @@ pub use selection::*;
 pub use entity_match::*;
 pub use bus::*;
 pub use topic::*;
+pub use request::*;

@@ -254,6 +254,7 @@ class Pixelport extends EventEmitter {
   // }
 
   _handleMessage(message) {
+    console.log('GOT MESSAGE', message);
     if (message.Frame) {
       this.emit('frame', message.Frame);
     } else if (message.Response) {
@@ -303,8 +304,7 @@ class Pixelport extends EventEmitter {
         var lines = byline(stream);
 
         lines.on('data', line => {
-          var message = JSON.parse(line);
-          this._handleMessage(message);
+          this._handleMessage(line);
         });
         streamPromiseResolve();
       })

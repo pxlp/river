@@ -167,9 +167,8 @@ impl App {
         self.viewport.on_update(&mut self.document, dtime, &mut self.resources, &mut self.models);
         let requests = self.tcpinterface.get_requests(&mut self.document);
         for req in requests {
-            if let Some(resp) = self.tcpinterface.handle_request((*req.request).bus_value_clone(), req.socket_token, &mut self.document) {
-                self.tcpinterface.send_response(req.request_id, req.socket_token, resp);
-            }
+            let resp = self.handle_request((*req.request).bus_value_clone(), req.socket_token);
+            self.tcpinterface.send_response(req.request_id, req.socket_token, resp);
         }
         self.culling.on_update(&mut self.document);
         self.resources.update();
@@ -181,6 +180,18 @@ impl App {
             }
         }
         return true;
+    }
+    pub fn handle_request(&mut self, request: Box<BusValue>, socket_token: pixelport_tcpinterface::SocketToken)
+            -> Result<Box<pixelport_tcpinterface::OutMessage>, pixelport_tcpinterface::RequestError> {
+        if let Some(resp) = self.tcpinterface.handle_request((*request).bus_value_clone(), socket_token, &mut self.document) {
+            return resp
+        }
+
+        Err(pixelport_tcpinterface::RequestError {
+            request_id: "".to_string(),
+            error_type: pixelport_tcpinterface::RequestErrorType::BadRequest,
+            message: format!("No handler available for {:?}", request)
+        })
     }
 }
 //
@@ -319,32 +330,15 @@ pub extern "C" fn pixelport_new() -> *mut App {
 pub extern "C" fn pixelport_update(app: &mut App) -> bool { app.update() }
 
 #[no_mangle]
-pub extern "C" fn pixelport_get_root(app: &mut App) -> i64 {
-    match app.document.get_root() {
-        Some(id) => id as i64,
-        None => -1
+pub extern "C" fn pixelport_request(app: &mut App, request: *mut c_char) {
+    let request = unsafe { CStr::from_ptr(request).to_string_lossy().into_owned() };
+    match Pon::from_string(&request) {
+        Ok(pon) => match app.document.translater.translate_raw(&pon, &mut app.document.bus) {
+            Ok(request) => {
+                let resp = app.handle_request(request, 0);
+            },
+            Err(err) => { println!("Request translate error: {:?}", err); }
+        },
+        Err(err) => { println!("Request parse error: {:?}", err); }
     }
-}
-
-#[no_mangle]
-pub extern "C" fn pixelport_append_entity(app: &mut App, parent_id: i64,
-    type_name: *mut c_char) -> i64 {
-    let parent_id: Option<EntityId> = if parent_id >= 0 { Some(parent_id as u64) } else { None };
-    let type_name = unsafe { CStr::from_ptr(type_name).to_string_lossy().into_owned() };
-    match app.document.append_entity(None, parent_id, &type_name, None) {
-        Ok(id) => id as i64,
-        Err(err) => {
-            println!("pixelport_append_entity failed with: {:?}", err);
-            -1
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn pixelport_set_property(app: &mut App, entity_id: u64,
-    property_key: *mut c_char, expression: *mut c_char) {
-    let property_key = unsafe { CStr::from_ptr(property_key).to_string_lossy().into_owned() };
-    let expression = unsafe { CStr::from_ptr(expression).to_string_lossy().into_owned() };
-    let expression = Pon::from_string(&expression).unwrap();
-    app.document.set_property(entity_id, &property_key, expression, false);
 }

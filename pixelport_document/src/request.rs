@@ -42,6 +42,12 @@ pub struct AppendEntityRequest {
     pub properties: HashMap<String, Pon>
 }
 
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct RemoveEntityRequest {
+    pub entity: Selector
+}
+
 pub fn pon_document_requests(translater: &mut PonTranslater) {
     pon_register_functions!("Document", translater =>
 
@@ -74,21 +80,36 @@ pub fn pon_document_requests(translater: &mut PonTranslater) {
             })
         }
 
+        "",
+        remove_entity({
+            entity: (Selector),
+        }) RemoveEntityRequest => {
+            Ok(RemoveEntityRequest {
+                entity: entity
+            })
+        }
+
     );
 }
 
+
+macro_rules! try_find_first {
+    ($selector:expr, $doc:expr, $root_id:expr) => (match $selector.find_first($doc, $root_id) {
+        Ok(val) => val,
+        Err(err) => {
+            return Some(Err(RequestError {
+                request_id: "".to_string(),
+                error_type: RequestErrorType::BadRequest,
+                message: format!("No such entity: {}", $selector.to_string())
+            }));
+        }
+    })
+}
 pub fn document_handle_request(request: Box<BusValue>, socket_token: SocketToken, doc: &mut Document) -> Option<Result<Box<OutMessage>, RequestError>> {
     let request = match request.downcast::<SetPropertiesRequest>() {
         Ok(set_properties) => {
             let root_id = doc.get_root().expect("Document missing root");
-            let ent = match set_properties.entity.find_first(doc, root_id) {
-                Ok(ent) => ent,
-                Err(_) => return Some(Err(RequestError {
-                    request_id: "".to_string(),
-                    error_type: RequestErrorType::BadRequest,
-                    message: format!("No such entity: {}", set_properties.entity.to_string())
-                }))
-            };
+            let ent = try_find_first!(set_properties.entity, doc, root_id);
             for (key, pon) in set_properties.properties {
                 if let Err(err) = doc.set_property(ent, &key, pon.clone(), false) {
                     warn!("Failed to set property {} {}, error: {:?}", key, pon.to_string(), err);
@@ -101,14 +122,7 @@ pub fn document_handle_request(request: Box<BusValue>, socket_token: SocketToken
     let request = match request.downcast::<AppendEntityRequest>() {
         Ok(append_entity) => {
             let root_id = doc.get_root().expect("AppendEntity Document missing root");
-            let parent_id = match append_entity.parent.find_first(doc, root_id) {
-                Ok(ent) => ent,
-                Err(_) => return Some(Err(RequestError {
-                    request_id: "".to_string(),
-                    error_type: RequestErrorType::BadRequest,
-                    message: format!("No such parent entity: {}", append_entity.parent.to_string())
-                }))
-            };
+            let parent_id = try_find_first!(append_entity.parent, doc, root_id);
             let ent = doc.append_entity(append_entity.entity_id, Some(parent_id), &append_entity.type_name, None).expect("AppendEntity failed to append entity");
             for (key, pon) in append_entity.properties {
                 if let Err(err) = doc.set_property(ent, &key, pon.clone(), false) {
@@ -116,6 +130,21 @@ pub fn document_handle_request(request: Box<BusValue>, socket_token: SocketToken
                 }
             }
             return Some(Ok(Box::new(ent)));
+        },
+        Err(request) => request
+    };
+    let request = match request.downcast::<RemoveEntityRequest>() {
+        Ok(remove_entity) => {
+            let root_id = doc.get_root().expect("RemoveEntity Document missing root");
+            let entity_id = try_find_first!(remove_entity.entity, doc, root_id);
+            return Some(match doc.remove_entity(entity_id) {
+                Ok(()) => Ok(Box::new(())),
+                Err(err) =>  Err(RequestError {
+                    request_id: "".to_string(),
+                    error_type: RequestErrorType::BadRequest,
+                    message: format!("RemoveEntity failed to remove entity {}: {:?}", remove_entity.entity.to_string(), err)
+                })
+            });
         },
         Err(request) => request
     };

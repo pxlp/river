@@ -52,6 +52,10 @@ pub struct ClearChildrenRequest {
     pub entity: Selector
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct ReserveEntityIdsRequest {
+    pub count: u64
+}
 
 pub fn pon_document_requests(translater: &mut PonTranslater) {
     pon_register_functions!("Document", translater =>
@@ -106,6 +110,16 @@ pub fn pon_document_requests(translater: &mut PonTranslater) {
         }) ClearChildrenRequest => {
             Ok(ClearChildrenRequest {
                 entity: entity
+            })
+        }
+
+
+        "Reserve a number of entity ids, that can then be used in append_entity.",
+        reserve_entity_ids({
+            count: (f32),
+        }) ReserveEntityIdsRequest => {
+            Ok(ReserveEntityIdsRequest {
+                count: count as u64
             })
         }
 
@@ -180,6 +194,13 @@ pub fn document_handle_request(request: Box<BusValue>, socket_token: SocketToken
                     message: format!("ClearChildren failed to clear children of {}: {:?}", clear_children.entity.to_string(), err)
                 })
             });
+        },
+        Err(request) => request
+    };
+    let request = match request.downcast::<ReserveEntityIdsRequest>() {
+        Ok(reserve_entity_ids) => {
+            let res = doc.reserve_entity_ids(reserve_entity_ids.count);
+            return Some(Ok(Box::new(vec![res.min, res.max])))
         },
         Err(request) => request
     };

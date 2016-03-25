@@ -20,12 +20,12 @@ class Pixelport extends EventEmitter {
   constructor() {
     super();
     this.client = null;
-    this.stream = null;
+    this._writeStream = null;
     this.process = null;
     this.pending = {};
     this.rpcIdCounter = 1;
-    this.subdocStreamIdCounter = 1;
-    this.subDocStreams = {};
+    this.streamIdCounter = 1;
+    this.streams = {};
   }
   static ponEscape(str) {
     return str.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
@@ -40,8 +40,13 @@ class Pixelport extends EventEmitter {
     return new Promise((resolve, reject) => {
       debug_request("id=%d, %o", requestId, message);
       this.pending[requestId] = { resolve: resolve, reject: reject };
-      this.stream.write(requestId + ' ' + message + '\n');
+      this._writeStream.write(requestId + ' ' + message + '\n');
     });
+  }
+
+  stream(channel_id) {
+    channel_id = channel_id || ('stream-' + this.streamIdCounter++);
+    return this.streams[channel_id] = new Stream(this, channel_id);
   }
   //
   // setProperties(entitySelector, properties) {
@@ -254,39 +259,23 @@ class Pixelport extends EventEmitter {
   // }
 
   _handleMessage(message) {
+    debug_response("%s", message);
     message = message.split(' ');
-    let request_id = message[0];
+    let channel_id = message[0];
     let status = message[1];
     let body = message.slice(2).join(' ');
-    if (body.indexOf('frame ') == 0) {
-      throw new Error('Not implemented yet.');
-      //this.emit('frame', body);
-    } else if (body.indexOf('sub_doc_stream_cycle') == 0) {
-      throw new Error('Not implemented yet.');
-      // let cycle = message.SubDocStreamCycle;
-      // var subDocStream = this.subDocStreams[cycle.sub_doc_stream_id];
-      // subDocStream.emit('cycle', cycle);
-    } else {
-      var pending = this.pending[request_id];
-      if (pending) {
-        delete this.pending[request_id];
-        if (status == 'ok') {
-          // if (message.Response.response.Ok.data.PngImage) { // PngImages are massive, hiding it from the console
-          //   debug_response("id=%d, OK PngImage { content: [%d bytes] }", message.Response.request_id,
-          //     message.Response.response.Ok.data.PngImage.content.length);
-          // } else if (message.Response.response.Ok.data.RawImage) { // RawImage are also massive
-          //   let img = message.Response.response.Ok.data.RawImage;
-          //   debug_response("id=%d, OK RawImage { content: [%d bytes], width: %d, height: %d, pixel_format: %s, pixel_type: %s }",
-          //     message.Response.request_id, img.content.length, img.width, img.height, img.pixel_format, img.pixel_type);
-          // } else {
-             debug_response("id=%d, OK %o", request_id, body);
-          // }
-          pending.resolve(body);
-        } else {
-          debug_response("id=%d, FAIL %o", request_id, body);
-          pending.reject(new Promise.OperationalError(body));
-        }
+    var pending = this.pending[channel_id];
+    if (pending) {
+      delete this.pending[channel_id];
+      if (status == 'ok') {
+        pending.resolve(body);
+      } else {
+        pending.reject(new Promise.OperationalError(body));
       }
+    }
+    var stream = this.streams[channel_id];
+    if (stream) {
+      stream.emit('data', body);
     }
   }
 
@@ -304,7 +293,7 @@ class Pixelport extends EventEmitter {
       var streamPromiseResolve = null;
       var streamPromise = new Promise((resolve) => streamPromiseResolve = resolve );
       this.client = reconnect(reconnectOpts, (stream) => {
-        this.stream = stream;
+        this._writeStream = stream;
         //stream.readable = true; // Just to get byline working
         var lines = byline(stream);
 
@@ -422,13 +411,8 @@ $ export PIXELPORT_APP_PATH=~/pixelport/pixelport_app/target/release/pixelport_a
 
 module.exports = Pixelport;
 
-class SubDocStream extends EventEmitter {
-  constructor(pixelport, id) {
+class Stream extends EventEmitter {
+  constructor() {
     super();
-    this.pixelport = pixelport;
-    this.id = id;
-  }
-  destroy() {
-    return this.pixelport.subDocStreamDestroy(this.id);
   }
 }

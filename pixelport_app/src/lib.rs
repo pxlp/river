@@ -166,10 +166,17 @@ impl App {
         self.layout.on_update(&mut self.document);
         self.picking.on_update(&mut self.document);
         self.viewport.on_update(&mut self.document, dtime, &mut self.resources, &mut self.models);
+        for outbound_message in self.viewport.get_outbound_messages() {
+            self.tcpinterface.send_message(outbound_message);
+        }
         let requests = self.tcpinterface.get_requests(&mut self.document);
         for req in requests {
             let resp = self.handle_request((*req.request).bus_value_clone(), req.socket_token);
-            self.tcpinterface.send_response(req.request_id, req.socket_token, resp);
+            self.tcpinterface.send_message(OutgoingMessage {
+                channel_id: req.request_id,
+                socket_token: req.socket_token,
+                message: resp
+            });
         }
         self.culling.on_update(&mut self.document);
         self.resources.update();

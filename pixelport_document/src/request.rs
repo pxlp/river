@@ -42,16 +42,26 @@ pub struct AppendEntityRequest {
     pub properties: HashMap<String, Pon>
 }
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct RemoveEntityRequest {
     pub entity: Selector
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct ClearChildrenRequest {
+    pub entity: Selector
+}
+
+
 pub fn pon_document_requests(translater: &mut PonTranslater) {
     pon_register_functions!("Document", translater =>
 
-        "",
+        r#"Set properties of an entity. Dependencies and functions in `properties` are not
+        evaluated at call time.
+
+        For instance, in `set_properties { entity: root, properties: { x: @root.y } }` the
+        `@root.y` will not be evaluated at request time, but rather set up as a dependency in the
+        document."#,
         set_properties({
             entity: (Selector),
             properties: {Pon},
@@ -62,7 +72,8 @@ pub fn pon_document_requests(translater: &mut PonTranslater) {
             })
         }
 
-        "",
+        r#"Append an entity to a parent entity. Properties are not evaluted at request time (see
+        set_properties for details)"#,
         append_entity({
             entity_id: (f32) optional,
             parent: (Selector),
@@ -80,11 +91,20 @@ pub fn pon_document_requests(translater: &mut PonTranslater) {
             })
         }
 
-        "",
+        "Remove an entity.",
         remove_entity({
             entity: (Selector),
         }) RemoveEntityRequest => {
             Ok(RemoveEntityRequest {
+                entity: entity
+            })
+        }
+
+        "Clear children of an entity.",
+        clear_children({
+            entity: (Selector),
+        }) ClearChildrenRequest => {
+            Ok(ClearChildrenRequest {
                 entity: entity
             })
         }
@@ -143,6 +163,21 @@ pub fn document_handle_request(request: Box<BusValue>, socket_token: SocketToken
                     request_id: "".to_string(),
                     error_type: RequestErrorType::BadRequest,
                     message: format!("RemoveEntity failed to remove entity {}: {:?}", remove_entity.entity.to_string(), err)
+                })
+            });
+        },
+        Err(request) => request
+    };
+    let request = match request.downcast::<ClearChildrenRequest>() {
+        Ok(clear_children) => {
+            let root_id = doc.get_root().expect("ClearChildren Document missing root");
+            let entity_id = try_find_first!(clear_children.entity, doc, root_id);
+            return Some(match doc.clear_children(entity_id) {
+                Ok(()) => Ok(Box::new(())),
+                Err(err) =>  Err(RequestError {
+                    request_id: "".to_string(),
+                    error_type: RequestErrorType::BadRequest,
+                    message: format!("ClearChildren failed to clear children of {}: {:?}", clear_children.entity.to_string(), err)
                 })
             });
         },

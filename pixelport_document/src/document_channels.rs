@@ -120,7 +120,7 @@ macro_rules! try_find_first {
         }
     })
 }
-pub fn document_handle_request(request: Box<BusValue>, socket_token: SocketToken, doc: &mut Document) -> Option<Result<Box<OutMessage>, RequestError>> {
+pub fn document_handle_request(request: Box<BusValue>, client_id: ClientId, doc: &mut Document) -> Option<Result<Box<OutMessage>, RequestError>> {
     let request = match request.downcast::<SetPropertiesRequest>() {
         Ok(set_properties) => {
             let root_id = doc.get_root().expect("Document missing root");

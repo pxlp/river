@@ -171,10 +171,10 @@ impl App {
         }
         let requests = self.tcpinterface.get_requests(&mut self.document);
         for req in requests {
-            let resp = self.handle_request((*req.request).bus_value_clone(), req.socket_token);
+            let resp = self.handle_request((*req.request).bus_value_clone(), req.client_id);
             self.tcpinterface.send_message(OutgoingMessage {
                 channel_id: req.request_id,
-                socket_token: req.socket_token,
+                client_id: req.client_id,
                 message: resp
             });
         }
@@ -189,13 +189,13 @@ impl App {
         }
         return true;
     }
-    pub fn handle_request(&mut self, request: Box<BusValue>, socket_token: SocketToken)
+    pub fn handle_request(&mut self, request: Box<BusValue>, client_id: ClientId)
             -> Result<Box<OutMessage>, RequestError> {
-        if let Some(resp) = document_handle_request((*request).bus_value_clone(), socket_token, &mut self.document) {
+        if let Some(resp) = document_handle_request((*request).bus_value_clone(), client_id, &mut self.document) {
             return resp;
-        } else if let Some(resp) = self.tcpinterface.handle_request((*request).bus_value_clone(), socket_token, &mut self.document) {
+        } else if let Some(resp) = self.tcpinterface.handle_request((*request).bus_value_clone(), client_id, &mut self.document) {
             return resp;
-        } else if let Some(resp) = self.viewport.handle_request((*request).bus_value_clone(), socket_token, &mut self.document, &mut self.resources, &mut self.models) {
+        } else if let Some(resp) = self.viewport.handle_request((*request).bus_value_clone(), client_id, &mut self.document, &mut self.resources, &mut self.models) {
             return resp;
         }
 

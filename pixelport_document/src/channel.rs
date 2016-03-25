@@ -19,12 +19,12 @@ pub enum RequestErrorType {
     InternalError,
 }
 
-pub type SocketToken = usize; // This is either a tcp socket or a c process
+pub type ClientId = usize; // This is either a tcp socket or a c process
 
 #[derive(Debug)]
 pub struct OutgoingMessage {
     pub channel_id: String, // Either a request_id or a stream_id
-    pub socket_token: SocketToken,
+    pub client_id: ClientId,
     pub message: Result<Box<OutMessage>, RequestError>
 }
 impl OutgoingMessage {

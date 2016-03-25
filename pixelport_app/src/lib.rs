@@ -188,7 +188,7 @@ impl App {
             return resp;
         } else if let Some(resp) = self.tcpinterface.handle_request((*request).bus_value_clone(), socket_token, &mut self.document) {
             return resp;
-        } else if let Some(resp) = self.viewport.handle_request((*request).bus_value_clone(), socket_token, &mut self.document) {
+        } else if let Some(resp) = self.viewport.handle_request((*request).bus_value_clone(), socket_token, &mut self.document, &mut self.resources, &mut self.models) {
             return resp;
         }
 

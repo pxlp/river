@@ -203,6 +203,11 @@ impl ToPon for f32 {
         Pon::Number(*self)
     }
 }
+impl ToPon for u8 {
+    fn to_pon(&self) -> Pon {
+        Pon::Number(*self as f32)
+    }
+}
 impl ToPon for u64 {
     fn to_pon(&self) -> Pon {
         Pon::Number(*self as f32)

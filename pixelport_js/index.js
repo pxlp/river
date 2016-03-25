@@ -254,34 +254,39 @@ class Pixelport extends EventEmitter {
   // }
 
   _handleMessage(message) {
-    console.log('GOT MESSAGE', message);
-    if (message.Frame) {
-      this.emit('frame', message.Frame);
-    } else if (message.Response) {
-      var pending = this.pending[message.Response.request_id];
+    message = message.split(' ');
+    let request_id = message[0];
+    let status = message[1];
+    let body = message.slice(2).join(' ');
+    if (body.indexOf('frame ') == 0) {
+      throw new Error('Not implemented yet.');
+      //this.emit('frame', body);
+    } else if (body.indexOf('sub_doc_stream_cycle') == 0) {
+      throw new Error('Not implemented yet.');
+      // let cycle = message.SubDocStreamCycle;
+      // var subDocStream = this.subDocStreams[cycle.sub_doc_stream_id];
+      // subDocStream.emit('cycle', cycle);
+    } else {
+      var pending = this.pending[request_id];
       if (pending) {
-        delete this.pending[message.Response.request_id];
-        if (message.Response.response.Ok) {
-          if (message.Response.response.Ok.data.PngImage) { // PngImages are massive, hiding it from the console
-            debug_response("id=%d, OK PngImage { content: [%d bytes] }", message.Response.request_id,
-              message.Response.response.Ok.data.PngImage.content.length);
-          } else if (message.Response.response.Ok.data.RawImage) { // RawImage are also massive
-            let img = message.Response.response.Ok.data.RawImage;
-            debug_response("id=%d, OK RawImage { content: [%d bytes], width: %d, height: %d, pixel_format: %s, pixel_type: %s }",
-              message.Response.request_id, img.content.length, img.width, img.height, img.pixel_format, img.pixel_type);
-          } else {
-            debug_response("id=%d, OK %o", message.Response.request_id, message.Response.response.Ok.data);
-          }
-          pending.resolve(message.Response.response.Ok.data);
+        delete this.pending[request_id];
+        if (status == 'ok') {
+          // if (message.Response.response.Ok.data.PngImage) { // PngImages are massive, hiding it from the console
+          //   debug_response("id=%d, OK PngImage { content: [%d bytes] }", message.Response.request_id,
+          //     message.Response.response.Ok.data.PngImage.content.length);
+          // } else if (message.Response.response.Ok.data.RawImage) { // RawImage are also massive
+          //   let img = message.Response.response.Ok.data.RawImage;
+          //   debug_response("id=%d, OK RawImage { content: [%d bytes], width: %d, height: %d, pixel_format: %s, pixel_type: %s }",
+          //     message.Response.request_id, img.content.length, img.width, img.height, img.pixel_format, img.pixel_type);
+          // } else {
+             debug_response("id=%d, OK %o", request_id, body);
+          // }
+          pending.resolve(body);
         } else {
           debug_response("id=%d, FAIL %o", message.Response.request_id, message.Response.response.Fail.error);
-          pending.reject(new Promise.OperationalError(JSON.stringify(message.Response.response.Fail.error)));
+          pending.reject(new Promise.OperationalError(body));
         }
       }
-    } else if (message.SubDocStreamCycle) {
-      let cycle = message.SubDocStreamCycle;
-      var subDocStream = this.subDocStreams[cycle.sub_doc_stream_id];
-      subDocStream.emit('cycle', cycle);
     }
   }
 
@@ -304,7 +309,7 @@ class Pixelport extends EventEmitter {
         var lines = byline(stream);
 
         lines.on('data', line => {
-          this._handleMessage(line);
+          this._handleMessage(line.toString());
         });
         streamPromiseResolve();
       })

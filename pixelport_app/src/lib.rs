@@ -210,16 +210,6 @@ impl App {
 //     fn window_events(&self) -> Vec<glutin::Event> {
 //         self.viewport.window_events.iter().map(|x| x.clone()).collect()
 //     }
-//     fn screenshot_to_png_data(&self) -> Result<Vec<u8>, String> {
-//         match self.viewport.screenshot() {
-//             Ok(ts) => {
-//                 let mut png_data = Vec::new();
-//                 ts.write_png(&mut png_data, 0);
-//                 Ok(png_data)
-//             },
-//             Err(err) => Err(format!("Failed to create screenshot: {:?}", err))
-//         }
-//     }
 //     fn dump_resources(&self) {
 //         self.resources.dump();
 //     }

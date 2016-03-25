@@ -97,6 +97,7 @@ impl App {
         picking.on_init(&mut translater);
         culling.on_init(&mut translater);
         layout.on_init(&mut translater);
+        pon_document_requests(&mut translater);
 
         let start_time = match &opts.time_progression {
             &TimeProgression::Real => time::get_time(),
@@ -183,7 +184,9 @@ impl App {
     }
     pub fn handle_request(&mut self, request: Box<BusValue>, socket_token: SocketToken)
             -> Result<Box<OutMessage>, RequestError> {
-        if let Some(resp) = self.tcpinterface.handle_request((*request).bus_value_clone(), socket_token, &mut self.document) {
+        if let Some(resp) = document_handle_request((*request).bus_value_clone(), socket_token, &mut self.document) {
+            return resp;
+        } else if let Some(resp) = self.tcpinterface.handle_request((*request).bus_value_clone(), socket_token, &mut self.document) {
             return resp;
         } else if let Some(resp) = self.viewport.handle_request((*request).bus_value_clone(), socket_token, &mut self.document) {
             return resp;

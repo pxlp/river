@@ -283,7 +283,7 @@ class Pixelport extends EventEmitter {
           // }
           pending.resolve(body);
         } else {
-          debug_response("id=%d, FAIL %o", message.Response.request_id, message.Response.response.Fail.error);
+          debug_response("id=%d, FAIL %o", request_id, body);
           pending.reject(new Promise.OperationalError(body));
         }
       }

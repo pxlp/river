@@ -4,7 +4,7 @@ use pad::{PadStr, Alignment};
 macro_rules! pon_doc_expand_map {
     ($fields:expr, { }) => ();
     ($fields:expr, { $name:ident : $inner:tt, $($rest:tt)* }) => (
-        $fields.push(PonDocMapField {
+        $fields.push($crate::pon_doc::PonDocMapField {
             var_name: stringify!($name).to_string(),
             optional: false,
             default: None,
@@ -13,7 +13,7 @@ macro_rules! pon_doc_expand_map {
         pon_doc_expand_map!($fields, { $($rest)* })
     );
     ($fields:expr, { $name:ident : $inner:tt optional, $($rest:tt)* }) => (
-        $fields.push(PonDocMapField {
+        $fields.push($crate::pon_doc::PonDocMapField {
             var_name: stringify!($name).to_string(),
             optional: true,
             default: None,
@@ -22,7 +22,7 @@ macro_rules! pon_doc_expand_map {
         pon_doc_expand_map!($fields, { $($rest)* })
     );
     ($fields:expr, { $name:ident : $inner:tt | $default:expr, $($rest:tt)* }) => (
-        $fields.push(PonDocMapField {
+        $fields.push($crate::pon_doc::PonDocMapField {
             var_name: stringify!($name).to_string(),
             optional: false,
             default: Some($default.to_pon().to_string()),

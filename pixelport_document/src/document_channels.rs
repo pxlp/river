@@ -51,7 +51,7 @@ pub struct DocStreamCreateRequest {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct DocStreamDestroyRequest {
+pub struct CloseStreamRequest {
     pub channel_id: String
 }
 
@@ -136,12 +136,11 @@ pub fn pon_document_requests(translater: &mut PonTranslater) {
             })
         }
 
-        r#"Create a doc stream. Streams changes to the document, filtered by `selector` and
-        optionally `property_regex`."#,
-        doc_stream_destroy({
+        "Remove a stream previously created",
+        close_stream({
             channel_id: (String),
-        }) DocStreamDestroyRequest => {
-            Ok(DocStreamDestroyRequest {
+        }) CloseStreamRequest => {
+            Ok(CloseStreamRequest {
                 channel_id: channel_id,
             })
         }
@@ -242,7 +241,7 @@ impl DocumentChannels {
             messages.push(inc.ok(()));
             return messages;
         }
-        if let Some(doc_stream_destroy) = (*inc.message).downcast_ref::<DocStreamDestroyRequest>() {
+        if let Some(doc_stream_destroy) = (*inc.message).downcast_ref::<CloseStreamRequest>() {
             self.doc_streams.remove(&(inc.client_id.clone(), doc_stream_destroy.channel_id.clone()));
             return vec![inc.ok(())];
         }

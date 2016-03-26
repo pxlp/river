@@ -48,6 +48,11 @@ class Pixelport extends EventEmitter {
     channel_id = channel_id || ('stream-' + this.streamIdCounter++);
     return this.streams[channel_id] = new Stream(this, channel_id);
   }
+  
+  closeStream(channel_id) {
+    delete this.streams[channel_id];
+    return this.pixelport.request(`close_stream { id: '${this.id}' }`);
+  }
   //
   // setProperties(entitySelector, properties) {
   //   Object.keys(properties).forEach(function(key) {
@@ -412,7 +417,12 @@ $ export PIXELPORT_APP_PATH=~/pixelport/pixelport_app/target/release/pixelport_a
 module.exports = Pixelport;
 
 class Stream extends EventEmitter {
-  constructor() {
+  constructor(pixelport, id) {
     super();
+    this.pixelport = pixelport;
+    this.id = id;
+  }
+  destroy() {
+    return this.pixelport.closeStream(this.id);
   }
 }

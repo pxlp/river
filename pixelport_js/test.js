@@ -2,6 +2,7 @@
 
 var assert = require('chai').assert;
 var Pixelport = require('.');
+var ponParser = require('./pon');
 
 suite('request', function() {
 
@@ -39,12 +40,32 @@ suite('stream', function() {
 });
 
 
+suite('pon parsing', function() {
+
+  test('empty', function() {
+    assert.deepEqual(ponParser.parse("vec3 {}"), {  _transform: 'vec3', arg: {} });
+  });
+
+
+  test('just x', function() {
+    assert.deepEqual(ponParser.parse("vec3 { x: 1 }"), { _transform: 'vec3', arg: { x: 1 } });
+  });
+
+  test('full', function() {
+    assert.deepEqual(ponParser.parse("vec3 { x: -1.56, y: 33, z: 533.12 }"), { _transform: 'vec3', arg: { x: -1.56, y: 33, z: 533.12 } });
+  });
+
+  test('spaces', function() {
+    assert.deepEqual(ponParser.parse("vec3{   x  :   -1.56  ,y:33, z:   533.12}"), { _transform: 'vec3', arg: { x: -1.56, y: 33, z: 533.12 } });
+  });
+
+});
+
 suite('vec3 parsing', function() {
 
   test('empty', function() {
     assert.deepEqual(Pixelport.parseVec3("vec3 {}"), { x: 0, y: 0, z: 0 });
   });
-
 
   test('just x', function() {
     assert.deepEqual(Pixelport.parseVec3("vec3 { x: 1 }"), { x: 1, y: 0, z: 0 });

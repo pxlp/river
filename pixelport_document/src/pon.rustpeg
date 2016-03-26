@@ -31,10 +31,10 @@ reference_pon -> Pon
 
 #[pub]
 reference -> NamedPropRef
-  = "" selector:selector sep* "." sep* property_name:identifier {
+  = "" selector:selector sep* "." sep* property_key:identifier {
     NamedPropRef {
       selector: selector,
-      property_key: property_name.to_string(),
+      property_key: property_key.to_string(),
     }
   }
 

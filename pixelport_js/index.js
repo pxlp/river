@@ -14,6 +14,7 @@ var debug_window_stderr = require('debug')('pixelport:window:stderr');
 var reconnect = require('reconnect-core')(function () {
   return net.connect.apply(null, arguments);
 });
+var ponParse = require('./pon');
 
 
 class Pixelport extends EventEmitter {
@@ -24,12 +25,6 @@ class Pixelport extends EventEmitter {
     this.process = null;
     this.channels = {};
     this.channelCounter = 1;
-  }
-  static ponEscape(str) {
-    return str.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-  }
-  static ponUnescape(str) {
-    return str.replace(/\\\\/g, "\\").replace(/\\'/g, "'");
   }
 
   request(message) {
@@ -73,8 +68,8 @@ class Pixelport extends EventEmitter {
   // // Helpers
   // waitForEntity(selector) {
   //   return new Promise((resolve, reject) => {
-  //     let stream = this.subDocStreamCreate({ selector: selector });
-  //     stream.on('cycle', (changes) => {
+  //     let stream = this.stream(`doc_stream_create { selector: ${selector} }`);
+  //     stream.on('message', (changes) => {
   //       if (changes.entities_added.length > 0) {
   //         stream.destroy();
   //         resolve();
@@ -240,22 +235,38 @@ $ export PIXELPORT_APP_PATH=~/pixelport/pixelport_app/target/release/pixelport_a
     }
   }
 
-  static stringifyVec3(v) {
-    return 'vec3 { x: ' + (v.x || 0.0) + ', y: ' + (v.y || 0.0) + ', z: ' + (v.z || 0) + '}';
+  static ponEscape(str) {
+    return str.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
   }
-  static parseVec3(string) {
-    let nums = string.match(/vec3\s*\{([^}]*)\}/);
-    let vec = { x: 0, y: 0, z: 0 };
-    nums[1].split(",").map(v => v.trim()).filter(v => v).forEach(v => {
-      let m = v.split(":");
-      let char = m[0].trim();
-      let val = parseFloat(m[1].trim());
-      vec[char] = val;
-    });
-    return vec;
+  static ponUnescape(str) {
+    return str.replace(/\\\\/g, "\\").replace(/\\'/g, "'");
+  }
+  static parsePon(str) {
+    return ponParse.parse(str);
+  }
+  static stringifyPon(pon) {
+    if (pon._transform) {
+      return pon._transform + ' ' + Pixelport.stringifyPon(pon.arg);
+    } else if (Array.isArray(pon)) {
+      return '[ ' + pon.map(x => Pixelport.stringifyPon(x)).join(', ') + ' ]';
+    } else if (pon instanceof Object) {
+      return '{ ' + Object.keys(pon).map(k => k + ': ' + Pixelport.stringifyPon(pon[k])).join(', ') + ' }';
+    } else {
+      return pon;
+    }
+  }
+  static stringifyVec3(v) {
+    return Pixelport.stringifyPon({ _transform: 'vec3', arg: v });
+  }
+  static parseVec3(str) {
+    let vec3 = Pixelport.parsePon(str).arg;
+    vec3.x = vec3.x || 0;
+    vec3.y = vec3.y || 0;
+    vec3.z = vec3.z || 0;
+    return vec3;
   }
   static colorToString(v) {
-    return 'color { r: ' + (v.r || 0.0) + ', g: ' + (v.g || 0.0) + ', b: ' + (v.b || 0) + ', a: ' + (v.a || 1) + '}';
+    return Pixelport.stringifyPon({ _transform: 'color', arg: v });
   }
 }
 

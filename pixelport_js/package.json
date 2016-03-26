@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "mocha -u tdd"
+    "test": "mocha -u tdd",
+    "generate_pon_parser": "pegjs pon.peg"
   },
   "author": "",
   "license": "ISC",

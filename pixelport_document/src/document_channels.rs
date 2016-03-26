@@ -175,6 +175,10 @@ impl DocumentChannels {
         }
         messages
     }
+    pub fn remove_client(&mut self, client_id: &ClientId) {
+        let kv: Vec<((ClientId, ChannelId), DocStream)> = { self.doc_streams.drain().collect() };
+        self.doc_streams = kv.into_iter().filter(|&((ref cid, _), _)| cid != client_id).collect();
+    }
     pub fn handle_request(&mut self, inc: &IncomingMessage, doc: &mut Document) -> Vec<OutgoingMessage> {
         if let Some(set_properties) = (*inc.message).downcast_ref::<SetPropertiesRequest>() {
             let root_id = doc.get_root().expect("Document missing root");

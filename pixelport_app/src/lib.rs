@@ -28,6 +28,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use pixelport_document::*;
+use pixelport_tcpinterface::TCPEvent;
 
 #[repr(C)]
 pub struct App {
@@ -169,11 +170,16 @@ impl App {
         for outbound_message in self.viewport.get_outbound_messages() {
             self.tcpinterface.send_message(outbound_message);
         }
-        let requests = self.tcpinterface.get_requests(&mut self.document);
-        for req in requests {
-            let messages = self.handle_request(req);
-            for message in messages {
-                self.tcpinterface.send_message(message);
+        let events = self.tcpinterface.get_events(&mut self.document);
+        for event in events {
+            match event {
+                TCPEvent::Message(req) => {
+                    let messages = self.handle_request(req);
+                    for message in messages {
+                        self.tcpinterface.send_message(message);
+                    }
+                },
+                TCPEvent::ClientLost(client_id) => self.remove_client(&client_id)
             }
         }
         self.culling.on_update(&mut self.document);
@@ -192,6 +198,10 @@ impl App {
         msgs.extend(self.document_channels.handle_request(&request, &mut self.document));
         msgs.extend(self.viewport.handle_request(&request, &mut self.document, &mut self.resources, &mut self.models));
         msgs
+    }
+    pub fn remove_client(&mut self, client_id: &ClientId) {
+        self.document_channels.remove_client(&client_id);
+        self.viewport.remove_client(&client_id);
     }
 }
 

@@ -20,6 +20,25 @@ suite('request', function() {
 });
 
 
+suite('stream', function() {
+
+  test('doc stream', function(done) {
+    var pixelport = new Pixelport();
+    pixelport.createWindow({
+      port: 0,
+      args: ['--multisampling=0', '--headless']
+    }).then(function() {
+      let stream = pixelport.stream(`doc_stream_create { selector: root, properties: '.*' }`);
+      stream.on('message', () => {
+        done()
+      });
+      pixelport.request(`set_properties { entity: root, properties: { x: 5 } }`);
+    });
+  });
+
+});
+
+
 suite('vec3 parsing', function() {
 
   test('empty', function() {

@@ -22,10 +22,8 @@ class Pixelport extends EventEmitter {
     this.client = null;
     this._writeStream = null;
     this.process = null;
-    this.pending = {};
-    this.rpcIdCounter = 1;
-    this.streamIdCounter = 1;
-    this.streams = {};
+    this.channels = {};
+    this.channelCounter = 1;
   }
   static ponEscape(str) {
     return str.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
@@ -35,183 +33,39 @@ class Pixelport extends EventEmitter {
   }
 
   request(message) {
-    var requestId = this.rpcIdCounter++;
+    var channelId = this.channelCounter++;
     message = message.replace(/\n/g, '');
     return new Promise((resolve, reject) => {
-      debug_request("id=%d, %o", requestId, message);
-      this.pending[requestId] = { resolve: resolve, reject: reject };
-      this._writeStream.write(requestId + ' ' + message + '\n');
+      debug_request("id=%d, %o", channelId, message);
+      this.channels[channelId] = (status, body) => {
+        if (status == 'ok') resolve(body);
+        else reject(new Promise.OperationalError(body));
+        delete this.channels;
+      };
+      this._writeStream.write(channelId + ' ' + message + '\n');
     });
   }
 
-  stream(channel_id) {
-    channel_id = channel_id || ('stream-' + this.streamIdCounter++);
-    return this.streams[channel_id] = new Stream(this, channel_id);
+  stream(message) {
+    var channelId = this.channelCounter++;
+    let stream = new Stream(this, channelId);
+    this.channels[channelId] = (status, body) => {
+      if (status == 'ok') stream.emit('message', body);
+      else {
+        stream.emit('error', body);
+        delete this.channels[channelId];
+      }
+    };
+    this._writeStream.write(channelId + ' ' + message + '\n');
+    return stream;
+  }
+
+  closeStream(channelId) {
+    return this.pixelport.request(`close_stream { channel_id: '${channelId}' }`).then(() => {
+      delete this.channels[channelId];
+    });
   }
   
-  closeStream(channel_id) {
-    delete this.streams[channel_id];
-    return this.pixelport.request(`close_stream { id: '${this.id}' }`);
-  }
-  //
-  // setProperties(entitySelector, properties) {
-  //   Object.keys(properties).forEach(function(key) {
-  //     properties[key] = '' + properties[key]; // Make sure properties are strings
-  //   });
-  //   return this._request({
-  //     SetProperties: {
-  //       entity_selector: '' + entitySelector,
-  //       properties: properties
-  //     }
-  //   });
-  // }
-  //
-  // appendEntity(opts) {
-  //   opts.properties = opts.properties || {};
-  //   Object.keys(opts.properties).forEach(function(key) {
-  //     opts.properties[key] = '' + opts.properties[key]; // Make sure properties are strings
-  //   });
-  //   return this._request({
-  //     AppendEntity: {
-  //       parent_selector: opts.parentSelector,
-  //       type_name: opts.typeName,
-  //       properties: opts.properties,
-  //       entity_id: opts.entityId
-  //     }
-  //   }).then(function(resp) {
-  //     return resp.EntityAdded;
-  //   });
-  // }
-  //
-  // removeEntity(entitySelector) {
-  //   return this._request({
-  //     RemoveEntity: {
-  //       entity_selector: entitySelector
-  //     }
-  //   });
-  // }
-  //
-  // clearChildren(entitySelector) {
-  //   return this._request({
-  //     ClearChildren: {
-  //       entity_selector: entitySelector
-  //     }
-  //   });
-  // }
-  //
-  // subDocStreamCreate(opts) {
-  //   opts.id = opts.id || ('subdocstream-' + this.subdocStreamIdCounter++);
-  //   var subDocStream = new SubDocStream(this, opts.id);
-  //   this.subDocStreams[opts.id] = subDocStream;
-  //   this._request({
-  //     SubDocStreamCreate: {
-  //       id: opts.id,
-  //       selector: opts.selector,
-  //       property_regex: opts.property_regex
-  //     }
-  //   });
-  //   return subDocStream;
-  // }
-  //
-  // subDocStreamDestroy(id) {
-  //   return this._request({
-  //     SubDocStreamDestroy: {
-  //       id: id
-  //     }
-  //   });
-  // }
-  //
-  // reserveEntityIds(count) {
-  //   return this._request({
-  //     ReserveEntityIds: { count: count }
-  //   }).then(function(resp) {
-  //     return resp.EntityIdsReserved;
-  //   });
-  // }
-  //
-  // screenshot() {
-  //   return this._request({
-  //     Screenshot: []
-  //   }).then(function(resp) {
-  //     return resp.PngImage;
-  //   });
-  // }
-  //
-  // screenshotToFile(path) {
-  //   return this._request({
-  //     ScreenshotToFile: { path: path }
-  //   });
-  // }
-  //
-  // pause() {
-  //   return this._request({
-  //     Pause: []
-  //   });
-  // }
-  //
-  // cont() {
-  //   return this._request({
-  //     Continue: []
-  //   });
-  // }
-  //
-  // step() {
-  //   return this._request({
-  //     Step: []
-  //   });
-  // }
-  //
-  // viewportDumpResources() {
-  //   return this._request({
-  //     ViewportDumpResources: []
-  //   });
-  // }
-  //
-  //
-  // entityRenderersBounding(entitySelector) {
-  //   return this._request({
-  //     EntityRenderersBounding: {
-  //       entity_selector: entitySelector
-  //     }
-  //   }).then(function(resp) {
-  //     return resp.EntityRenderersBounding;
-  //   });
-  // }
-  //
-  // visualizeEntityRenderersBounding(entitySelector) {
-  //   return this._request({
-  //     VisualizeEntityRenderersBounding: {
-  //       entity_selector: entitySelector
-  //     }
-  //   });
-  // }
-  //
-  // fakeWindowEvent(event) {
-  //   return this._request({
-  //     FakeWindowEvent: {
-  //       event: event
-  //     }
-  //   });
-  // }
-  //
-  // listTextures() {
-  //   return this._request({
-  //     ListTextures: []
-  //   }).then(res => res.Textures);
-  // }
-  //
-  // getTextureContent(id) {
-  //   return this._request({
-  //     GetTextureContent: { id: id }
-  //   }).then(res => res.RawImage);
-  // }
-  //
-  // awaitAllResources() {
-  //   return this._request({
-  //     AwaitAllResources: []
-  //   });
-  // }
-
   shutdown() {
     this.process.kill();
   }
@@ -266,21 +120,12 @@ class Pixelport extends EventEmitter {
   _handleMessage(message) {
     debug_response("%s", message);
     message = message.split(' ');
-    let channel_id = message[0];
+    let channelId = message[0];
     let status = message[1];
     let body = message.slice(2).join(' ');
-    var pending = this.pending[channel_id];
-    if (pending) {
-      delete this.pending[channel_id];
-      if (status == 'ok') {
-        pending.resolve(body);
-      } else {
-        pending.reject(new Promise.OperationalError(body));
-      }
-    }
-    var stream = this.streams[channel_id];
-    if (stream) {
-      stream.emit('data', body);
+    var channel = this.channels[channelId];
+    if (channel) {
+      channel(status, body);
     }
   }
 

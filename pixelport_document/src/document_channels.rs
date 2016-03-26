@@ -45,7 +45,6 @@ pub struct ReserveEntityIdsRequest {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct DocStreamCreateRequest {
-    pub channel_id: String,
     pub selector: Selector,
     pub property_regex: Option<String>
 }
@@ -125,12 +124,10 @@ pub fn pon_document_requests(translater: &mut PonTranslater) {
         r#"Create a doc stream. Streams changes to the document, filtered by `selector` and
         optionally `property_regex`."#,
         doc_stream_create({
-            channel_id: (String),
             selector: (Selector),
             property_regex: (String) optional,
         }) DocStreamCreateRequest => {
             Ok(DocStreamCreateRequest {
-                channel_id: channel_id,
                 selector: selector,
                 property_regex: property_regex,
             })
@@ -224,7 +221,7 @@ impl DocumentChannels {
             let root_id = doc.get_root().expect("Document missing root");
             let selection = Selection::new(doc_stream_create.selector.clone(), root_id);
             let mut doc_stream = DocStream {
-                channel_id: doc_stream_create.channel_id.clone(),
+                channel_id: inc.channel_id.clone(),
                 client_id: inc.client_id.clone(),
                 selection: selection,
                 property_regex: match &doc_stream_create.property_regex {
@@ -237,8 +234,7 @@ impl DocumentChannels {
             if let Some(message) = doc_stream.init(doc) {
                 messages.push(message);
             }
-            self.doc_streams.insert((inc.client_id.clone(), doc_stream_create.channel_id.clone()), doc_stream);
-            messages.push(inc.ok(()));
+            self.doc_streams.insert((inc.client_id.clone(), inc.channel_id.clone()), doc_stream);
             return messages;
         }
         if let Some(doc_stream_destroy) = (*inc.message).downcast_ref::<CloseStreamRequest>() {

@@ -44,6 +44,7 @@ pub struct App {
     pub culling: pixelport_culling::CullingSubSystem,
     pub layout: pixelport_layout::LayoutSubSystem,
     pub resources: pixelport_resources::ResourceStorage,
+    pub resources_channels: pixelport_resources::ResourcesChannels,
     pub models: pixelport_models::Models,
     start_time: Timespec,
     prev_time: Timespec,
@@ -97,7 +98,8 @@ impl App {
         picking.on_init(&mut translater);
         culling.on_init(&mut translater);
         layout.on_init(&mut translater);
-        DocumentChannels::pon_requests(&mut translater);
+        DocumentChannels::pon_document_channels(&mut translater);
+        pixelport_resources::ResourcesChannels::pon_resources_channels(&mut translater);
         pon_register_functions!("App", translater =>
 
             "Frame data.",
@@ -151,6 +153,7 @@ impl App {
             culling: culling,
             layout: layout,
             resources: resources,
+            resources_channels: pixelport_resources::ResourcesChannels,
             models: models,
             start_time: start_time,
             prev_time: start_time,
@@ -224,6 +227,7 @@ impl App {
         let mut msgs = Vec::new();
         msgs.extend(self.document_channels.handle_request(&inc, &mut self.document));
         msgs.extend(self.viewport.handle_request(&inc, &mut self.document, &mut self.resources, &mut self.models));
+        msgs.extend(self.resources_channels.handle_request(&inc, &mut self.document, &mut self.resources));
         if let Some(frame_stream_create) = (*inc.message).downcast_ref::<FrameStreamCreateRequest>() {
             self.frame_streams.push((inc.client_id.clone(), inc.channel_id.clone()));
             return Vec::new();

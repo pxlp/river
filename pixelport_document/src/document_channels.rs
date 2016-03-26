@@ -155,7 +155,7 @@ impl DocumentChannels {
         Vec::new()
     }
 
-    pub fn pon_requests(translater: &mut PonTranslater) {
+    pub fn pon_document_channels(translater: &mut PonTranslater) {
         pon_register_functions!("Document", translater =>
 
             r#"Set properties of an entity. Dependencies and functions in `properties` are not

@@ -25,6 +25,18 @@ class Pixelport extends EventEmitter {
     this.process = null;
     this.channels = {};
     this.channelCounter = 1;
+    this.on('newListener', (event) => {
+      if (event == 'frame' && !this.frameStream) {
+        this.frameStream = this.stream('frame_stream_create');
+        this.frameStream.on('message', (frame) => this.emit('frame', frame));
+      }
+    });
+    this.on('removeListener', (event) => {
+      if (event == 'frame' && this.frameStream && this.listenerCount('frame') == 0) {
+        this.frameStream.destroy();
+        delete this.frameStream;
+      }
+    });
   }
 
   request(message) {
@@ -56,7 +68,7 @@ class Pixelport extends EventEmitter {
   }
 
   closeStream(channelId) {
-    return this.pixelport.request(`close_stream { channel_id: '${channelId}' }`).then(() => {
+    return this.request(`close_stream { channel_id: '${channelId}' }`).then(() => {
       delete this.channels[channelId];
     });
   }
@@ -64,60 +76,61 @@ class Pixelport extends EventEmitter {
   shutdown() {
     this.process.kill();
   }
-  //
-  // // Helpers
-  // waitForEntity(selector) {
-  //   return new Promise((resolve, reject) => {
-  //     let stream = this.stream(`doc_stream_create { selector: ${selector} }`);
-  //     stream.on('message', (changes) => {
-  //       if (changes.entities_added.length > 0) {
-  //         stream.destroy();
-  //         resolve();
-  //       }
-  //     });
-  //   });
-  // }
-  //
-  // waitForPropertyChange(selector, property) {
-  //   return new Promise((resolve, reject) => {
-  //     let stream = this.subDocStreamCreate({ selector: selector, property_regex: property });
-  //     stream.on('cycle', (changes) => {
-  //       if (changes.updated_properties.length > 0) {
-  //         stream.destroy();
-  //         resolve();
-  //       }
-  //     });
-  //   });
-  // }
-  //
-  // waitFrames(n) {
-  //   if (n === undefined) n = 1;
-  //   return new Promise((resolve, reject) => {
-  //     let cb = () => {
-  //       n--;
-  //       if (n == 0) {
-  //         this.removeListener('frame', cb);
-  //         resolve();
-  //       }
-  //     };
-  //     this.on('frame', cb);
-  //   });
-  // }
-  //
-  // fakeMoveMouse(position) {
-  //   return this.fakeWindowEvent({ MouseMoved: [position.x, position.y] });
-  // }
-  //
-  // fakeClick() {
-  //   return this.fakeWindowEvent({ MouseInput: { state: { Pressed: [] }, button: { Left: [] } } });
-  // }
+
+  // Helpers
+  waitForEntity(selector) {
+    return new Promise((resolve, reject) => {
+      let stream = this.stream(`doc_stream_create { selector: ${selector} }`);
+      stream.on('message', (changes) => {
+        if (changes.arg.entities_added.length > 0) {
+          stream.destroy();
+          resolve();
+        }
+      });
+    });
+  }
+
+  waitForPropertyChange(selector, property) {
+    return new Promise((resolve, reject) => {
+      let stream = this.subDocStreamCreate({ selector: selector, property_regex: property });
+      stream.on('message', (changes) => {
+        if (changes.arg.updated_properties.length > 0) {
+          stream.destroy();
+          resolve();
+        }
+      });
+    });
+  }
+
+  waitFrames(n) {
+    if (n === undefined) n = 1;
+    return new Promise((resolve, reject) => {
+      let cb = () => {
+        n--;
+        if (n == 0) {
+          this.removeListener('frame', cb);
+          resolve();
+        }
+      };
+      this.on('frame', cb);
+    });
+  }
+
+  fakeMoveMouse(position) {
+    return this.request(`fake_window_event window_event_mouse_moved { x: ${position.x}, y: ${position.y} }`);
+  }
+
+  fakeClick() {
+    return this.request(`fake_window_event window_event_mouse_input { state: 'pressed', button: 'left' }`);
+  }
 
   _handleMessage(message) {
     debug_response("%s", message);
     message = message.split(' ');
     let channelId = message[0];
     let status = message[1];
-    let body = message.slice(2).join(' ');
+    let bodyString = message.slice(2).join(' ');
+    let body = Pixelport.parsePon(bodyString);
     var channel = this.channels[channelId];
     if (channel) {
       channel(status, body);

@@ -8,13 +8,24 @@ pub trait OutMessage: ToPon + Send + Debug {
 }
 impl<T: ToPon + Send + Debug> OutMessage for T {}
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RequestError {
     pub error_type: RequestErrorType,
     pub message: String
 }
+impl ToPon for RequestError {
+    fn to_pon(&self) -> Pon {
+        Pon::call("request_error", Pon::Object(hashmap![
+            "error_type" => match self.error_type {
+                RequestErrorType::BadRequest => "bad_request".to_pon(),
+                RequestErrorType::InternalError => "internal_error".to_pon(),
+            },
+            "message" => self.message.to_pon()
+        ]))
+    }
+}
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum RequestErrorType {
     BadRequest,
     InternalError,
@@ -65,7 +76,7 @@ impl IncomingMessage {
                     client_id: client_id,
                     message: Err(RequestError {
                         error_type: RequestErrorType::BadRequest,
-                        message: format!("Unable to translate request: {:?}", err)
+                        message: format!("Unable to translate request: {}", err.to_string())
                     })
                 })
             },
@@ -74,7 +85,7 @@ impl IncomingMessage {
                 client_id: client_id,
                 message: Err(RequestError {
                     error_type: RequestErrorType::BadRequest,
-                    message: format!("Unable to parse request: {:?}", err)
+                    message: format!("Unable to parse request: {}", err.to_string())
                 })
             })
         }
@@ -114,7 +125,7 @@ impl OutgoingMessage {
     pub fn to_tcpmessage(&self) -> String {
         match &self.message {
             &Ok(ref message) => format!("{} ok {}", self.channel_id, message.to_pon().to_string()),
-            &Err(ref err) => format!("{} err {:?}", self.channel_id, err),
+            &Err(ref err) => format!("{} err {}", self.channel_id, err.to_pon().to_string()),
         }
     }
 }

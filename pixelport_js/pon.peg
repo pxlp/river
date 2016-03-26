@@ -114,7 +114,7 @@ nil
   = "(" sep* ")" { return { _type: 'nil' }; }
 
 string
-  = "'" s:char* "'" { return { _type: 'string', value: s } }
+  = "'" s:char* "'" { return text(); }
 
 char
   = [^\\'] { return text().slice(1) }

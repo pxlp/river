@@ -2,7 +2,6 @@
 
 var assert = require('chai').assert;
 var Pixelport = require('.');
-var ponParser = require('./pon');
 
 suite('request', function() {
 
@@ -43,20 +42,32 @@ suite('stream', function() {
 suite('pon parsing', function() {
 
   test('empty', function() {
-    assert.deepEqual(ponParser.parse("vec3 {}"), {  _transform: 'vec3', arg: {} });
+    assert.deepEqual(Pixelport.parsePon("vec3 {}"), {  _transform: 'vec3', arg: {} });
   });
 
-
   test('just x', function() {
-    assert.deepEqual(ponParser.parse("vec3 { x: 1 }"), { _transform: 'vec3', arg: { x: 1 } });
+    assert.deepEqual(Pixelport.parsePon("vec3 { x: 1 }"), { _transform: 'vec3', arg: { x: 1 } });
   });
 
   test('full', function() {
-    assert.deepEqual(ponParser.parse("vec3 { x: -1.56, y: 33, z: 533.12 }"), { _transform: 'vec3', arg: { x: -1.56, y: 33, z: 533.12 } });
+    assert.deepEqual(Pixelport.parsePon("vec3 { x: -1.56, y: 33, z: 533.12 }"), { _transform: 'vec3', arg: { x: -1.56, y: 33, z: 533.12 } });
   });
 
   test('spaces', function() {
-    assert.deepEqual(ponParser.parse("vec3{   x  :   -1.56  ,y:33, z:   533.12}"), { _transform: 'vec3', arg: { x: -1.56, y: 33, z: 533.12 } });
+    assert.deepEqual(Pixelport.parsePon("vec3{   x  :   -1.56  ,y:33, z:   533.12}"), { _transform: 'vec3', arg: { x: -1.56, y: 33, z: 533.12 } });
+  });
+
+  test('string', function() {
+    assert.deepEqual(Pixelport.parsePon("test { x: 'hello' }"), { _transform: 'test', arg: { x: "'hello'" } });
+  });
+
+});
+
+suite('pon stringify', function() {
+
+  test('string', function() {
+    // Strings are assumed to be pre-transformed pons.
+    assert.deepEqual(Pixelport.stringifyPon("test"), "test");
   });
 
 });

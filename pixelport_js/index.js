@@ -7,8 +7,8 @@ var byline = require('byline');
 var EventEmitter = require('events');
 var util = require('util');
 var debug = require('debug')('pixelport');
-var debug_request = require('debug')('pixelport:request');
-var debug_response = require('debug')('pixelport:response');
+var debug_out = require('debug')('pixelport:out');
+var debug_in = require('debug')('pixelport:in');
 var debug_window_stdout = require('debug')('pixelport:window:stdout');
 var debug_window_stderr = require('debug')('pixelport:window:stderr');
 var reconnect = require('reconnect-core')(function () {
@@ -27,7 +27,7 @@ class Pixelport extends EventEmitter {
     this.channelCounter = 1;
     this.on('newListener', (event) => {
       if (event == 'frame' && !this.frameStream) {
-        this.frameStream = this.stream('frame_stream_create');
+        this.frameStream = this.stream('frame_stream_create ()');
         this.frameStream.on('message', (frame) => this.emit('frame', frame));
       }
     });
@@ -40,20 +40,25 @@ class Pixelport extends EventEmitter {
   }
 
   request(message) {
+    if (message instanceof Object) {
+      message = Pixelport.stringifyPon(message);
+    }
     var channelId = this.channelCounter++;
     message = message.replace(/\n/g, '');
     return new Promise((resolve, reject) => {
-      debug_request("id=%d, %o", channelId, message);
       this.channels[channelId] = (status, body) => {
         if (status == 'ok') resolve(body);
         else reject(new Promise.OperationalError(body));
         delete this.channels[channelId];
       };
-      this._writeStream.write(channelId + ' ' + message + '\n');
+      this._writeMessage(channelId + ' ' + message);
     });
   }
 
   stream(message) {
+    if (message instanceof Object) {
+      message = Pixelport.stringifyPon(message);
+    }
     var channelId = this.channelCounter++;
     let stream = new Stream(this, channelId);
     this.channels[channelId] = (status, body) => {
@@ -63,7 +68,7 @@ class Pixelport extends EventEmitter {
         delete this.channels[channelId];
       }
     };
-    this._writeStream.write(channelId + ' ' + message + '\n');
+    this._writeMessage(channelId + ' ' + message);
     return stream;
   }
 
@@ -92,7 +97,7 @@ class Pixelport extends EventEmitter {
 
   waitForPropertyChange(selector, property) {
     return new Promise((resolve, reject) => {
-      let stream = this.subDocStreamCreate({ selector: selector, property_regex: property });
+      let stream = this.stream({ _transform: 'doc_stream_create', arg: { selector: selector, property_regex: "'" + property + "'" } });
       stream.on('message', (changes) => {
         if (changes.arg.updated_properties.length > 0) {
           stream.destroy();
@@ -117,15 +122,20 @@ class Pixelport extends EventEmitter {
   }
 
   fakeMoveMouse(position) {
-    return this.request(`fake_window_event window_event_mouse_moved { x: ${position.x}, y: ${position.y} }`);
+    return this.request(`fake_window_event { event: window_event_mouse_moved { x: ${position.x}, y: ${position.y} } }`);
   }
 
   fakeClick() {
-    return this.request(`fake_window_event window_event_mouse_input { state: 'pressed', button: 'left' }`);
+    return this.request(`fake_window_event { event: window_event_mouse_input { state: 'pressed', button: 'left' } }`);
+  }
+
+  _writeMessage(message) {
+    debug_out("%s", message);
+    this._writeStream.write(message + '\n');
   }
 
   _handleMessage(message) {
-    debug_response("%s", message);
+    debug_in("%s", message);
     message = message.split(' ');
     let channelId = message[0];
     let status = message[1];

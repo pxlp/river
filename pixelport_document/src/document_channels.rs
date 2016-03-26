@@ -100,7 +100,10 @@ impl DocumentChannels {
         if let Some(append_entity) = (*inc.message).downcast_ref::<AppendEntityRequest>() {
             let root_id = doc.get_root().expect("AppendEntity Document missing root");
             let parent_id = try_find_first!(inc, append_entity.parent, doc, root_id);
-            let ent = doc.append_entity(append_entity.entity_id, Some(parent_id), &append_entity.type_name, None).expect("AppendEntity failed to append entity");
+            let ent = match doc.append_entity(append_entity.entity_id, Some(parent_id), &append_entity.type_name, None) {
+                Ok(v) => v,
+                Err(err) => return vec![inc.bad_request(&err.to_string())]
+            };
             for (key, pon) in &append_entity.properties {
                 if let Err(err) = doc.set_property(ent, &key, pon.clone(), false) {
                     warn!("AppendEntity Failed to set property {} {}, error: {:?}", key, pon.to_string(), err);

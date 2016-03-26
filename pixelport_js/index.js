@@ -40,7 +40,7 @@ class Pixelport extends EventEmitter {
       this.channels[channelId] = (status, body) => {
         if (status == 'ok') resolve(body);
         else reject(new Promise.OperationalError(body));
-        delete this.channels;
+        delete this.channels[channelId];
       };
       this._writeStream.write(channelId + ' ' + message + '\n');
     });
@@ -65,7 +65,7 @@ class Pixelport extends EventEmitter {
       delete this.channels[channelId];
     });
   }
-  
+
   shutdown() {
     this.process.kill();
   }

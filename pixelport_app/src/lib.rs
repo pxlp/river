@@ -1,3 +1,4 @@
+#[macro_use]
 extern crate pixelport_document;
 extern crate pixelport_std;
 extern crate pixelport_animation;
@@ -48,6 +49,7 @@ pub struct App {
     prev_time: Timespec,
     time_progression: TimeProgression,
     min_frame_ms: Option<f32>,
+    frame_streams: Vec<(ClientId, ChannelId)>
 }
 
 #[derive(PartialEq)]
@@ -95,7 +97,24 @@ impl App {
         picking.on_init(&mut translater);
         culling.on_init(&mut translater);
         layout.on_init(&mut translater);
-        pon_document_requests(&mut translater);
+        DocumentChannels::pon_requests(&mut translater);
+        pon_register_functions!("App", translater =>
+
+            "Frame data.",
+            frame({
+                dtime: (f32),
+            }) FrameDescription => {
+                Ok(FrameDescription {
+                    dtime: dtime,
+                })
+            }
+
+            "Create frame data stream.",
+            frame_stream_create() FrameStreamCreateRequest => {
+                Ok(FrameStreamCreateRequest)
+            }
+
+        );
 
         let start_time = match &opts.time_progression {
             &TimeProgression::Real => time::get_time(),
@@ -109,7 +128,7 @@ impl App {
             name: "time".to_string(),
             target_type_name: "f32".to_string(),
             arg: PonDocMatcher::Nil,
-            module: "Utils".to_string(),
+            module: "App".to_string(),
             doc: "Get the current time".to_string()
         });
 
@@ -137,6 +156,7 @@ impl App {
             prev_time: start_time,
             time_progression: opts.time_progression,
             min_frame_ms: opts.min_frame_ms,
+            frame_streams: Vec::new()
         }
     }
 
@@ -154,6 +174,13 @@ impl App {
         let cycle_changes = self.document.close_cycle();
         for outbound_message in self.document_channels.cycle_changes(&mut self.document, &cycle_changes) {
             self.tcpinterface.send_message(outbound_message);
+        }
+        for &(ref client_id, ref channel_id) in &self.frame_streams {
+            self.tcpinterface.send_message(OutgoingMessage {
+                client_id: client_id.clone(),
+                channel_id: channel_id.clone(),
+                message: Ok(Box::new(FrameDescription { dtime: dtime.num_milliseconds() as f32 / 1000.0 }))
+            });
         }
         self.subdoc.on_cycle(&mut self.document, &cycle_changes, &mut self.models);
         self.template.on_cycle(&mut self.document, &cycle_changes);
@@ -193,17 +220,40 @@ impl App {
         }
         return true;
     }
-    pub fn handle_request(&mut self, request: IncomingMessage) -> Vec<OutgoingMessage> {
+    pub fn handle_request(&mut self, inc: IncomingMessage) -> Vec<OutgoingMessage> {
         let mut msgs = Vec::new();
-        msgs.extend(self.document_channels.handle_request(&request, &mut self.document));
-        msgs.extend(self.viewport.handle_request(&request, &mut self.document, &mut self.resources, &mut self.models));
+        msgs.extend(self.document_channels.handle_request(&inc, &mut self.document));
+        msgs.extend(self.viewport.handle_request(&inc, &mut self.document, &mut self.resources, &mut self.models));
+        if let Some(frame_stream_create) = (*inc.message).downcast_ref::<FrameStreamCreateRequest>() {
+            self.frame_streams.push((inc.client_id.clone(), inc.channel_id.clone()));
+            return Vec::new();
+        }
+        if let Some(close_stream) = (*inc.message).downcast_ref::<CloseStreamRequest>() {
+            self.frame_streams.retain(|x| x != &(inc.client_id.clone(), close_stream.channel_id.to_string()));
+            return vec![inc.ok(())]
+        }
         msgs
     }
     pub fn remove_client(&mut self, client_id: &ClientId) {
         self.document_channels.remove_client(&client_id);
         self.viewport.remove_client(&client_id);
+        self.frame_streams.retain(|&(ref cid, _)| cid != client_id);
     }
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FrameDescription {
+    dtime: f32
+}
+impl ToPon for FrameDescription {
+    fn to_pon(&self) -> Pon {
+        Pon::call("frame", Pon::Object(hashmap![
+            "dtime" => self.dtime.to_pon()
+        ]))
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct FrameStreamCreateRequest;
 
 #[repr(C)]
 pub struct CApp {

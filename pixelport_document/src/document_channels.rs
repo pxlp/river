@@ -55,95 +55,6 @@ pub struct CloseStreamRequest {
 }
 
 
-pub fn pon_document_requests(translater: &mut PonTranslater) {
-    pon_register_functions!("Document", translater =>
-
-        r#"Set properties of an entity. Dependencies and functions in `properties` are not
-        evaluated at call time.
-
-        For instance, in `set_properties { entity: root, properties: { x: @root.y } }` the
-        `@root.y` will not be evaluated at request time, but rather set up as a dependency in the
-        document."#,
-        set_properties({
-            entity: (Selector),
-            properties: {Pon},
-        }) SetPropertiesRequest => {
-            Ok(SetPropertiesRequest {
-                entity: entity,
-                properties: properties
-            })
-        }
-
-        r#"Append an entity to a parent entity. Properties are not evaluted at request time (see
-        set_properties for details)"#,
-        append_entity({
-            entity_id: (f32) optional,
-            parent: (Selector),
-            type_name: (String),
-            properties: {Pon},
-        }) AppendEntityRequest => {
-            Ok(AppendEntityRequest {
-                entity_id: match entity_id {
-                    Some(v) => Some(v as EntityId),
-                    None => None
-                },
-                parent: parent,
-                type_name: type_name,
-                properties: properties
-            })
-        }
-
-        "Remove an entity.",
-        remove_entity({
-            entity: (Selector),
-        }) RemoveEntityRequest => {
-            Ok(RemoveEntityRequest {
-                entity: entity
-            })
-        }
-
-        "Clear children of an entity.",
-        clear_children({
-            entity: (Selector),
-        }) ClearChildrenRequest => {
-            Ok(ClearChildrenRequest {
-                entity: entity
-            })
-        }
-
-
-        "Reserve a number of entity ids, that can then be used in append_entity.",
-        reserve_entity_ids({
-            count: (f32),
-        }) ReserveEntityIdsRequest => {
-            Ok(ReserveEntityIdsRequest {
-                count: count as u64
-            })
-        }
-
-        r#"Create a doc stream. Streams changes to the document, filtered by `selector` and
-        optionally `property_regex`."#,
-        doc_stream_create({
-            selector: (Selector),
-            property_regex: (String) optional,
-        }) DocStreamCreateRequest => {
-            Ok(DocStreamCreateRequest {
-                selector: selector,
-                property_regex: property_regex,
-            })
-        }
-
-        "Remove a stream previously created",
-        close_stream({
-            channel_id: (String),
-        }) CloseStreamRequest => {
-            Ok(CloseStreamRequest {
-                channel_id: channel_id,
-            })
-        }
-    );
-}
-
 
 macro_rules! try_find_first {
     ($inc:expr, $selector:expr, $doc:expr, $root_id:expr) => (match $selector.find_first($doc, $root_id) {
@@ -243,4 +154,94 @@ impl DocumentChannels {
         }
         Vec::new()
     }
+
+    pub fn pon_requests(translater: &mut PonTranslater) {
+        pon_register_functions!("Document", translater =>
+
+            r#"Set properties of an entity. Dependencies and functions in `properties` are not
+            evaluated at call time.
+
+            For instance, in `set_properties { entity: root, properties: { x: @root.y } }` the
+            `@root.y` will not be evaluated at request time, but rather set up as a dependency in the
+            document."#,
+            set_properties({
+                entity: (Selector),
+                properties: {Pon},
+            }) SetPropertiesRequest => {
+                Ok(SetPropertiesRequest {
+                    entity: entity,
+                    properties: properties
+                })
+            }
+
+            r#"Append an entity to a parent entity. Properties are not evaluted at request time (see
+            set_properties for details)"#,
+            append_entity({
+                entity_id: (f32) optional,
+                parent: (Selector),
+                type_name: (String),
+                properties: {Pon},
+            }) AppendEntityRequest => {
+                Ok(AppendEntityRequest {
+                    entity_id: match entity_id {
+                        Some(v) => Some(v as EntityId),
+                        None => None
+                    },
+                    parent: parent,
+                    type_name: type_name,
+                    properties: properties
+                })
+            }
+
+            "Remove an entity.",
+            remove_entity({
+                entity: (Selector),
+            }) RemoveEntityRequest => {
+                Ok(RemoveEntityRequest {
+                    entity: entity
+                })
+            }
+
+            "Clear children of an entity.",
+            clear_children({
+                entity: (Selector),
+            }) ClearChildrenRequest => {
+                Ok(ClearChildrenRequest {
+                    entity: entity
+                })
+            }
+
+
+            "Reserve a number of entity ids, that can then be used in append_entity.",
+            reserve_entity_ids({
+                count: (f32),
+            }) ReserveEntityIdsRequest => {
+                Ok(ReserveEntityIdsRequest {
+                    count: count as u64
+                })
+            }
+
+            r#"Create a doc stream. Streams changes to the document, filtered by `selector` and
+            optionally `property_regex`."#,
+            doc_stream_create({
+                selector: (Selector),
+                property_regex: (String) optional,
+            }) DocStreamCreateRequest => {
+                Ok(DocStreamCreateRequest {
+                    selector: selector,
+                    property_regex: property_regex,
+                })
+            }
+
+            "Remove a stream previously created",
+            close_stream({
+                channel_id: (String),
+            }) CloseStreamRequest => {
+                Ok(CloseStreamRequest {
+                    channel_id: channel_id,
+                })
+            }
+        );
+    }
+
 }

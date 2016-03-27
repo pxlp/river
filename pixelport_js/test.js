@@ -109,6 +109,9 @@ suite('pon stringify', function() {
     assert.deepEqual(Pixelport.stringifyPon(new PonCall("test", { x: new PonSelector("#15") })), "test { x: #15 }");
   });
 
+  test('nil', function() {
+    assert.deepEqual(Pixelport.stringifyPon(new PonCall("test", null)), "test ()");
+  });
 });
 
 suite('vec3 parsing', function() {

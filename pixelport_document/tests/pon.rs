@@ -114,7 +114,7 @@ fn test_array_trailing_comma() {
 #[test]
 fn test_transform_nil() {
     let v = Pon::from_string("static_mesh ()");
-    assert_eq!(v, Ok(Pon::PonCall(Box::new(PonCall { function_name: "static_mesh".to_string(), arg: Pon::Nil }))));
+    assert_eq!(v, Ok(Pon::Call(Box::new(PonCall { function_name: "static_mesh".to_string(), arg: Pon::Nil }))));
 }
 
 #[test]
@@ -123,25 +123,25 @@ fn test_transform_arg() {
     let mut hm = HashMap::new();
     hm.insert("vertices".to_string(), Pon::Array(vec![Pon::Number(0.0), Pon::Number(-0.5)]));
     hm.insert("indices".to_string(),  Pon::Array(vec![Pon::Number(0.0), Pon::Number(1.0)]));
-    assert_eq!(v, Ok(Pon::PonCall(Box::new(PonCall { function_name: "static_mesh".to_string(), arg: Pon::Object(hm) }))));
+    assert_eq!(v, Ok(Pon::Call(Box::new(PonCall { function_name: "static_mesh".to_string(), arg: Pon::Object(hm) }))));
 }
 
 #[test]
 fn test_transform_number() {
     let v = Pon::from_string("static_mesh 5.0");
-    assert_eq!(v, Ok(Pon::PonCall(Box::new(PonCall { function_name: "static_mesh".to_string(), arg: Pon::Number(5.0) }))));
+    assert_eq!(v, Ok(Pon::Call(Box::new(PonCall { function_name: "static_mesh".to_string(), arg: Pon::Number(5.0) }))));
 }
 
 #[test]
 fn test_dependency_reference() {
     let v = Pon::from_string("@some.test");
-    assert_eq!(v, Ok(Pon::DependencyReference(NamedPropRef::new(Selector::root_search("some".to_string()), "test"), None)));
+    assert_eq!(v, Ok(Pon::DepPropRef(NamedPropRef::new(Selector::root_search("some".to_string()), "test"), None)));
 }
 
 #[test]
 fn test_reference() {
     let v = Pon::from_string("some.test");
-    assert_eq!(v, Ok(Pon::Reference(NamedPropRef::new(Selector::root_search("some".to_string()), "test"))));
+    assert_eq!(v, Ok(Pon::PropRef(NamedPropRef::new(Selector::root_search("some".to_string()), "test"))));
 }
 
 #[test]
@@ -151,7 +151,7 @@ fn test_prop_selector() {
         SelectorPath::Search(EntityMatch::Name("some".to_string())),
         SelectorPath::Search(EntityMatch::Name("else".to_string())),
     ] };
-    assert_eq!(v, Ok(Pon::Reference(NamedPropRef::new(sel, "test"))));
+    assert_eq!(v, Ok(Pon::PropRef(NamedPropRef::new(sel, "test"))));
 }
 
 #[test]

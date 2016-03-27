@@ -44,7 +44,7 @@ impl ToString for NamedPropRef {
 }
 impl ToPon for NamedPropRef {
     fn to_pon(&self) -> Pon {
-        Pon::Reference(self.clone())
+        Pon::PropRef(self.clone())
     }
 }
 
@@ -78,9 +78,9 @@ impl PonCall {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pon {
-    PonCall(Box<PonCall>),
-    DependencyReference(NamedPropRef, Option<PropRef>),
-    Reference(NamedPropRef),
+    Call(Box<PonCall>),
+    DepPropRef(NamedPropRef, Option<PropRef>),
+    PropRef(NamedPropRef),
     Selector(Selector),
     Array(Vec<Pon>),
     Object(HashMap<String, Pon>),
@@ -96,13 +96,13 @@ impl Pon {
         pon_peg::body(string)
     }
     pub fn call(function_name: &str, arg: Pon) -> Pon {
-        Pon::PonCall(Box::new(PonCall { function_name: function_name.to_string(), arg: arg }))
+        Pon::Call(Box::new(PonCall { function_name: function_name.to_string(), arg: arg }))
     }
     pub fn build_dependencies_array(&self, references: &mut Vec<PropRef>) {
         match self {
-            &Pon::PonCall(box PonCall { ref arg, .. } ) =>
+            &Pon::Call(box PonCall { ref arg, .. } ) =>
                 arg.build_dependencies_array(references),
-            &Pon::DependencyReference(_, ref reference) => {
+            &Pon::DepPropRef(_, ref reference) => {
                 references.push(match reference {
                     &Some(ref v) => v.clone(),
                     &None => panic!("trying to run build_dependencies_array on non-resolved Pon")
@@ -124,9 +124,9 @@ impl Pon {
 
     fn stringify(&self, options: &PonStringifyOptions) -> String {
         match self {
-            &Pon::PonCall(box ref typed_pon) => typed_pon.stringify(&options),
-            &Pon::DependencyReference(ref named_prop_ref, ref resolved) => format!("@{}", named_prop_ref.to_string()),
-            &Pon::Reference(ref named_prop_ref) => format!("{}", named_prop_ref.to_string()),
+            &Pon::Call(box ref typed_pon) => typed_pon.stringify(&options),
+            &Pon::DepPropRef(ref named_prop_ref, ref resolved) => format!("@{}", named_prop_ref.to_string()),
+            &Pon::PropRef(ref named_prop_ref) => format!("{}", named_prop_ref.to_string()),
             &Pon::Selector(ref selector) => format!("{}", selector.to_string()),
             &Pon::Array(ref array) => {
                 let a: Vec<String> = array.iter().map(|x| x.stringify(&options)).collect();
@@ -236,7 +236,7 @@ impl<T: ToPon> ToPon for HashMap<String, T> {
 
 impl ToPon for Vector2<f32> {
     fn to_pon(&self) -> Pon {
-        Pon::PonCall(Box::new(PonCall {
+        Pon::Call(Box::new(PonCall {
             function_name: "vec2".to_string(),
             arg: Pon::Object(hashmap!(
                 "x" => Pon::Number(self.x),
@@ -254,7 +254,7 @@ fn test_vec2_to_pon() {
 
 impl ToPon for Vector3<f32> {
     fn to_pon(&self) -> Pon {
-        Pon::PonCall(Box::new(PonCall {
+        Pon::Call(Box::new(PonCall {
             function_name: "vec3".to_string(),
             arg: Pon::Object(hashmap!(
                 "x" => Pon::Number(self.x),
@@ -273,7 +273,7 @@ fn test_vec3_to_pon() {
 
 impl ToPon for Vector4<f32> {
     fn to_pon(&self) -> Pon {
-        Pon::PonCall(Box::new(PonCall {
+        Pon::Call(Box::new(PonCall {
             function_name: "vec4".to_string(),
             arg: Pon::Object(hashmap!(
                 "x" => Pon::Number(self.x),
@@ -293,7 +293,7 @@ fn test_vec4_to_pon() {
 
 impl ToPon for Matrix4<f32> {
     fn to_pon(&self) -> Pon {
-        Pon::PonCall(Box::new(PonCall {
+        Pon::Call(Box::new(PonCall {
             function_name: "matrix".to_string(),
             arg: Pon::Array(vec![
                 Pon::Number(self.x.x), Pon::Number(self.x.y), Pon::Number(self.x.z), Pon::Number(self.x.w),

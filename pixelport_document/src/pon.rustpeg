@@ -12,7 +12,7 @@ pon -> Pon
 
 call_pon -> Pon
   = function_name:identifier sep* arg:pon sep* {
-    Pon::PonCall(Box::new(PonCall {
+    Pon::Call(Box::new(PonCall {
       function_name: function_name.to_string(),
       arg: arg
     }))
@@ -20,11 +20,11 @@ call_pon -> Pon
 
 dep_propref_pon -> Pon
   = "@" propref:propref {
-    Pon::DependencyReference(propref, None)
+    Pon::DepPropRef(propref, None)
   }
 
 propref_pon -> Pon
-  = propref:propref { Pon::Reference(propref) }
+  = propref:propref { Pon::PropRef(propref) }
 
 selector_pon -> Pon
   = "" selector:selector {

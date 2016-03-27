@@ -153,7 +153,7 @@ impl PonTranslater {
     }
     pub fn translate_raw(&self, pon: &Pon, bus: &Bus) -> Result<Box<BusValue>, PonTranslaterErr> {
         match pon {
-            &Pon::PonCall(box PonCall { ref function_name, ref arg }) => {
+            &Pon::Call(box PonCall { ref function_name, ref arg }) => {
                 match self.functions.get(function_name) {
                     Some(func) => match (*func.func)(arg, self, bus) {
                         Ok(val) => Ok(val),
@@ -164,15 +164,15 @@ impl PonTranslater {
                     None => Err(PonTranslaterErr::NoSuchFunction { function_name: function_name.to_string() })
                 }
             },
-            &Pon::DependencyReference(ref named_prop_ref, Some(ref prop_ref)) => {
+            &Pon::DepPropRef(ref named_prop_ref, Some(ref prop_ref)) => {
                 match bus.get(&prop_ref, self) {
                     Ok(val) => Ok(val),
                     Err(err @ BusError::NoSuchEntry { .. }) => Err(PonTranslaterErr::BadDependency { property: named_prop_ref.clone(), error: Box::new(err) }),
                     Err(err) => Err(PonTranslaterErr::BusError(Box::new(err)))
                 }
             },
-            &Pon::DependencyReference(ref named_prop_ref, None) => panic!("Trying to translate on non-resolved dependency reference"),
-            &Pon::Reference(ref named_prop_ref) => Ok(Box::new(named_prop_ref.clone())),
+            &Pon::DepPropRef(ref named_prop_ref, None) => panic!("Trying to translate on non-resolved dependency reference"),
+            &Pon::PropRef(ref named_prop_ref) => Ok(Box::new(named_prop_ref.clone())),
             &Pon::Selector(ref selector) => Ok(Box::new(selector.clone())),
             &Pon::Array(ref value) => Ok(Box::new(value.clone())),
             &Pon::Object(ref value) => Ok(Box::new(value.clone())),

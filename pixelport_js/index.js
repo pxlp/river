@@ -309,9 +309,6 @@ $ export PIXELPORT_APP_PATH=~/pixelport/pixelport_app/target/release/pixelport_a
     vec3.z = vec3.z || 0;
     return vec3;
   }
-  static colorToString(v) {
-    return Pixelport.stringifyPon({ _transform: 'color', arg: v });
-  }
 }
 Pixelport.PonCall = ponTypes.PonCall;
 Pixelport.PonPropRef = ponTypes.PonPropRef;

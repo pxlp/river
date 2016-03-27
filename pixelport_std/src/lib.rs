@@ -199,6 +199,16 @@ pub fn pon_std(translater: &mut PonTranslater) {
             Ok(std::f32::consts::PI)
         }
 
+        "Absolute value of a number",
+        abs(val: (f32)) f32 => {
+            Ok(val.abs())
+        }
+
+        "Minimum value of a list of numbers",
+        min(vals: [f32]) f32 => {
+            Ok(vals.iter().cloned().fold(std::f32::MAX, f32::min))
+        }
+
         "Shorthand for creating a vector4",
         color({
             r: (f32) | 0.0,
@@ -301,6 +311,11 @@ pub fn pon_std(translater: &mut PonTranslater) {
         "Add two vec3",
         add3(vals: [Vector3<f32>]) Vector3<f32> => {
             Ok(&vals[0] + &vals[1])
+        }
+
+        "Subtract two vec3",
+        sub3(vals: [Vector3<f32>]) Vector3<f32> => {
+            Ok(&vals[0] - &vals[1])
         }
 
         "Normalize a vec3",

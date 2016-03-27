@@ -780,14 +780,9 @@ dependencies = [
 name = "pixelport_tcpinterface"
 version = "0.1.0"
 dependencies = [
- "base64 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "cgmath 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "glutin 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "pixelport_document 0.1.0",
- "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "regex 0.1.58 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

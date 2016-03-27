@@ -273,7 +273,7 @@ $ export PIXELPORT_APP_PATH=~/pixelport/pixelport_app/target/release/pixelport_a
   }
   static stringifyPon(pon) {
     if (pon instanceof ponTypes.PonCall) {
-      return pon.name + ' ' + Pixelport.stringifyPon(pon.arg);
+      return pon.functionName + ' ' + Pixelport.stringifyPon(pon.arg);
     } else if (pon instanceof ponTypes.PonPropRef) {
       return pon.propref;
     } else if (pon instanceof ponTypes.PonDepPropRef) {

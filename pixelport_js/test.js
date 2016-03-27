@@ -8,40 +8,40 @@ var PonDepPropRef = require('./pon_types').PonDepPropRef;
 var PonPropRef = require('./pon_types').PonPropRef;
 var PonSelector = require('./pon_types').PonSelector;
 
-// suite('request', function() {
-//
-//   test('requests returned promise should resolve', function(done) {
-//     var pixelport = new Pixelport();
-//     pixelport.createWindow({
-//       port: 0,
-//       args: ['--multisampling=0', '--headless']
-//     }).then(function() {
-//       pixelport.request(`set_properties { entity: root, properties: { x: 5 } }`).then(function() {
-//         done();
-//       });
-//     });
-//   });
-//
-// });
-//
-//
-// suite('stream', function() {
-//
-//   test('doc stream', function(done) {
-//     var pixelport = new Pixelport();
-//     pixelport.createWindow({
-//       port: 0,
-//       args: ['--multisampling=0', '--headless']
-//     }).then(function() {
-//       let stream = pixelport.stream(`doc_stream_create { selector: root, properties: '.*' }`);
-//       stream.on('message', () => {
-//         done()
-//       });
-//       pixelport.request(`set_properties { entity: root, properties: { x: 5 } }`);
-//     });
-//   });
-//
-// });
+suite('request', function() {
+
+  test('requests returned promise should resolve', function(done) {
+    var pixelport = new Pixelport();
+    pixelport.createWindow({
+      port: 0,
+      args: ['--multisampling=0', '--headless']
+    }).then(function() {
+      pixelport.request(`set_properties { entity: root, properties: { x: 5 } }`).then(function() {
+        done();
+      });
+    });
+  });
+
+});
+
+
+suite('stream', function() {
+
+  test('doc stream', function(done) {
+    var pixelport = new Pixelport();
+    pixelport.createWindow({
+      port: 0,
+      args: ['--multisampling=0', '--headless']
+    }).then(function() {
+      let stream = pixelport.stream(`doc_stream_create { selector: root, properties: '.*' }`);
+      stream.on('message', () => {
+        done()
+      });
+      pixelport.request(`set_properties { entity: root, properties: { x: 5 } }`);
+    });
+  });
+
+});
 
 
 suite('pon parsing', function() {

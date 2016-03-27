@@ -1,8 +1,8 @@
 "use strict";
 
 class PonCall {
-  constructor(name, arg) {
-    this.name = name;
+  constructor(functionName, arg) {
+    this.functionName = functionName;
     this.arg = arg;
   }
 }

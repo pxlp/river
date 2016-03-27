@@ -1,3 +1,4 @@
+#[macro_use]
 extern crate pixelport_document;
 extern crate pixelport_std;
 extern crate pixelport_animation;
@@ -28,10 +29,12 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use pixelport_document::*;
+use pixelport_tcpinterface::TCPEvent;
 
 #[repr(C)]
 pub struct App {
     pub document: Document,
+    pub document_channels: DocumentChannels,
     pub subdoc: pixelport_subdoc::SubdocSubSystem,
     pub template: pixelport_template::TemplateSubSystem,
     pub animation: pixelport_animation::AnimationSubSystem,
@@ -41,11 +44,13 @@ pub struct App {
     pub culling: pixelport_culling::CullingSubSystem,
     pub layout: pixelport_layout::LayoutSubSystem,
     pub resources: pixelport_resources::ResourceStorage,
+    pub resources_channels: pixelport_resources::ResourcesChannels,
     pub models: pixelport_models::Models,
     start_time: Timespec,
     prev_time: Timespec,
     time_progression: TimeProgression,
     min_frame_ms: Option<f32>,
+    frame_streams: Vec<(ClientId, ChannelId)>
 }
 
 #[derive(PartialEq)]
@@ -93,6 +98,25 @@ impl App {
         picking.on_init(&mut translater);
         culling.on_init(&mut translater);
         layout.on_init(&mut translater);
+        DocumentChannels::pon_document_channels(&mut translater);
+        pixelport_resources::ResourcesChannels::pon_resources_channels(&mut translater);
+        pon_register_functions!("App", translater =>
+
+            "Frame data.",
+            frame({
+                dtime: (f32),
+            }) FrameDescription => {
+                Ok(FrameDescription {
+                    dtime: dtime,
+                })
+            }
+
+            "Create frame data stream.",
+            frame_stream_create() FrameStreamCreateRequest => {
+                Ok(FrameStreamCreateRequest)
+            }
+
+        );
 
         let start_time = match &opts.time_progression {
             &TimeProgression::Real => time::get_time(),
@@ -106,7 +130,7 @@ impl App {
             name: "time".to_string(),
             target_type_name: "f32".to_string(),
             arg: PonDocMatcher::Nil,
-            module: "Utils".to_string(),
+            module: "App".to_string(),
             doc: "Get the current time".to_string()
         });
 
@@ -119,6 +143,7 @@ impl App {
 
         App {
             document: document,
+            document_channels: DocumentChannels::new(),
             subdoc: subdoc,
             template: template,
             animation: animation,
@@ -128,11 +153,13 @@ impl App {
             culling: culling,
             layout: layout,
             resources: resources,
+            resources_channels: pixelport_resources::ResourcesChannels,
             models: models,
             start_time: start_time,
             prev_time: start_time,
             time_progression: opts.time_progression,
             min_frame_ms: opts.min_frame_ms,
+            frame_streams: Vec::new()
         }
     }
 
@@ -148,24 +175,43 @@ impl App {
         if self.viewport.pre_update(&mut self.document) { return false; }
 
         let cycle_changes = self.document.close_cycle();
+        for outbound_message in self.document_channels.cycle_changes(&mut self.document, &cycle_changes) {
+            self.tcpinterface.send_message(outbound_message);
+        }
+        for &(ref client_id, ref channel_id) in &self.frame_streams {
+            self.tcpinterface.send_message(OutgoingMessage {
+                client_id: client_id.clone(),
+                channel_id: channel_id.clone(),
+                message: Ok(Box::new(FrameDescription { dtime: dtime.num_milliseconds() as f32 / 1000.0 }))
+            });
+        }
         self.subdoc.on_cycle(&mut self.document, &cycle_changes, &mut self.models);
         self.template.on_cycle(&mut self.document, &cycle_changes);
         self.animation.on_cycle(&mut self.document, &cycle_changes, time, &mut self.models);
         self.layout.on_cycle(&mut self.document, &cycle_changes);
         self.picking.on_cycle(&mut self.document, &cycle_changes);
         self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources, &mut self.models);
-        self.tcpinterface.on_cycle(&mut self.document, &cycle_changes);
         self.culling.on_cycle(&mut self.document, &cycle_changes);
 
         self.animation.on_update(&mut self.document, time);
         self.layout.on_update(&mut self.document);
         self.picking.on_update(&mut self.document);
         self.viewport.on_update(&mut self.document, dtime, &mut self.resources, &mut self.models);
-        self.tcpinterface.on_update(&mut self.document, &mut TCPInterfaceEnvironment {
-            viewport: &mut self.viewport,
-            resources: &mut self.resources,
-            models: &mut self.models
-        });
+        for outbound_message in self.viewport.get_outbound_messages() {
+            self.tcpinterface.send_message(outbound_message);
+        }
+        let events = self.tcpinterface.get_events(&mut self.document);
+        for event in events {
+            match event {
+                TCPEvent::Message(req) => {
+                    let messages = self.handle_request(req);
+                    for message in messages {
+                        self.tcpinterface.send_message(message);
+                    }
+                },
+                TCPEvent::ClientLost(client_id) => self.remove_client(&client_id)
+            }
+        }
         self.culling.on_update(&mut self.document);
         self.resources.update();
         if let Some(min_frame_ms) = self.min_frame_ms {
@@ -177,169 +223,81 @@ impl App {
         }
         return true;
     }
+    pub fn handle_request(&mut self, inc: IncomingMessage) -> Vec<OutgoingMessage> {
+        let mut msgs = Vec::new();
+        if self.document_channels.handle_request(&inc, &mut msgs, &mut self.document) { return msgs; }
+        if self.viewport.handle_request(&inc, &mut msgs, &mut self.document, &mut self.resources, &mut self.models) { return msgs; }
+        if self.resources_channels.handle_request(&inc, &mut msgs, &mut self.document, &mut self.resources) { return msgs; }
+        if let Some(frame_stream_create) = (*inc.message).downcast_ref::<FrameStreamCreateRequest>() {
+            self.frame_streams.push((inc.client_id.clone(), inc.channel_id.clone()));
+            return msgs;
+        }
+        if let Some(close_stream) = (*inc.message).downcast_ref::<CloseStreamRequest>() {
+            self.frame_streams.retain(|x| x != &(inc.client_id.clone(), close_stream.channel_id.to_string()));
+            return vec![inc.ok(())];
+        }
+        return vec![inc.bad_request(&format!("No handler registered for message {:?}", inc.message))];
+    }
+    pub fn remove_client(&mut self, client_id: &ClientId) {
+        self.document_channels.remove_client(&client_id);
+        self.viewport.remove_client(&client_id);
+        self.frame_streams.retain(|&(ref cid, _)| cid != client_id);
+    }
 }
 
-struct TCPInterfaceEnvironment<'a> {
-    viewport: &'a mut pixelport_viewport::ViewportSubSystem,
-    resources: &'a mut pixelport_resources::ResourceStorage,
-    models: &'a mut pixelport_models::Models,
+#[derive(Debug, Clone, PartialEq)]
+pub struct FrameDescription {
+    dtime: f32
 }
+impl ToPon for FrameDescription {
+    fn to_pon(&self) -> Pon {
+        Pon::call("frame", Pon::Object(hashmap![
+            "dtime" => self.dtime.to_pon()
+        ]))
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct FrameStreamCreateRequest;
 
-impl<'a> pixelport_tcpinterface::ITCPInterfaceEnvironment for TCPInterfaceEnvironment<'a> {
-    fn window_events(&self) -> Vec<glutin::Event> {
-        self.viewport.window_events.iter().map(|x| x.clone()).collect()
-    }
-    fn screenshot_to_png_data(&self) -> Result<Vec<u8>, String> {
-        match self.viewport.screenshot() {
-            Ok(ts) => {
-                let mut png_data = Vec::new();
-                ts.write_png(&mut png_data, 0);
-                Ok(png_data)
-            },
-            Err(err) => Err(format!("Failed to create screenshot: {:?}", err))
-        }
-    }
-    fn screenshot_to_file(&self, path: &str) -> Result<(), String> {
-        match self.viewport.screenshot() {
-            Ok(ts) => {
-                match ts.save_png(Path::new(&path), 0) {
-                    Ok(_) => Ok(()),
-                    Err(err) => Err(format!("Failed to save screenshot to file {:?}: {:?}", path, err))
-                }
-            },
-            Err(err) => Err(format!("Failed to create screenshot: {:?}", err))
-        }
-    }
-    fn dump_resources(&self) {
-        self.resources.dump();
-    }
-    fn entity_renderers_bounding(&mut self, entity_id: EntityId, doc: &mut Document) -> Result<HashMap<String, pixelport_tcpinterface::AABB>, String> {
-        match self.viewport.entity_renderers_bounding(self.resources, &mut self.models, entity_id, doc) {
-            Ok(boundings) => Ok(boundings.into_iter().map(|(renderer_name, bounding)| {
-                (renderer_name, pixelport_tcpinterface::AABB {
-                    screen_min: pixelport_tcpinterface::Vec3 {
-                        x: self.viewport.current_window_size.0 as f32 * (bounding.min.x + 1.0) / 2.0,
-                        y: self.viewport.current_window_size.1 as f32 * (bounding.min.y + 1.0) / 2.0,
-                        z: bounding.min.z
-                    },
-                    screen_max: pixelport_tcpinterface::Vec3 {
-                        x: self.viewport.current_window_size.0 as f32 * (bounding.max.x + 1.0) / 2.0,
-                        y: self.viewport.current_window_size.1 as f32 * (bounding.max.y + 1.0) / 2.0,
-                        z: bounding.max.z
-                    },
-                    viewport_min: bounding.min.into(),
-                    viewport_max: bounding.max.into(),
-                })
-            }).collect()),
-            Err(err) => Err(err)
-        }
-    }
-    fn set_visualize_entity_bounding(&mut self, entity_id: Option<EntityId>) {
-        self.viewport.visualize_entity_bounding = entity_id;
-    }
-    fn fake_window_event(&mut self, event: glutin::Event) {
-        self.viewport.fake_window_event(event);
-    }
-    fn get_renderer_stats(&mut self) -> Vec<pixelport_tcpinterface::messages::RendererStats> {
-        let mut stats = vec![];
-        for r in &self.viewport.renderers {
-            stats.push(pixelport_tcpinterface::messages::RendererStats {
-                name: r.desc.name.clone(),
-                n_renderables: r.n_renderables()
-            })
-        }
-        stats
-    }
-    fn list_textures(&mut self) -> Vec<pixelport_tcpinterface::messages::Texture> {
-        self.resources.gl_textures.iter().map(|(k, v)| {
-            pixelport_tcpinterface::messages::Texture {
-                name: format!("{:?}", k),
-                id: match v.value() {
-                    Some(v) => v.texture,
-                    None => 0
-                }
-            }
-        }).collect()
-    }
-    fn get_texture_content(&mut self, id: u32) -> Result<pixelport_tcpinterface::messages::RawImage, String> {
-        let t = self.resources.gl_textures.values().find(|v| {
-            if let Some(v) = v.value() {
-                v.texture == id
-            } else {
-                false
-            }
-        });
-        if let Some(t) = t {
-            if let Some(t) = t.value() {
-                let ts = t.to_texture_source();
-                Ok(pixelport_tcpinterface::messages::RawImage {
-                    content: ts.to_base64().unwrap(),
-                    width: t.width as u32,
-                    height: t.height as u32,
-                    pixel_format: t.format.to_pon_enum(),
-                    pixel_type: ts.content.pixel_type().to_pon_enum()
-                })
-            } else {
-                Err(format!("Texture still loading: {}", id))
-            }
-        } else {
-            Err(format!("No such texture: {}", id))
-        }
-    }
-    fn await_all_resources(&mut self) {
-        self.resources.await_all();
-    }
+#[repr(C)]
+pub struct CApp {
+    app: App,
+    request_counter: u64
 }
 
 #[no_mangle]
-pub extern "C" fn pixelport_new() -> *mut App {
-    let app = Box::new(App::new(AppOptions {
-        viewport: pixelport_viewport::ViewportSubSystemOptions {
-            fullscreen: false,
-            multisampling: 0,
-            vsync: false,
-            headless: false,
-            window_size: None
-        },
-        port: 4303,
-        document: DocumentDescription::Empty,
-        root_path: Path::new(".").to_path_buf(),
-        time_progression: TimeProgression::Real,
-        min_frame_ms: None
-    }));
+pub extern "C" fn pixelport_new() -> *mut CApp {
+    let app = Box::new(CApp {
+        app: App::new(AppOptions {
+            viewport: pixelport_viewport::ViewportSubSystemOptions {
+                fullscreen: false,
+                multisampling: 0,
+                vsync: false,
+                headless: false,
+                window_size: None
+            },
+            port: 4303,
+            document: DocumentDescription::Empty,
+            root_path: Path::new(".").to_path_buf(),
+            time_progression: TimeProgression::Real,
+            min_frame_ms: None
+        }),
+        request_counter: 0
+    });
     unsafe { mem::transmute(app) }
 }
 
 #[no_mangle]
-pub extern "C" fn pixelport_update(app: &mut App) -> bool { app.update() }
+pub extern "C" fn pixelport_update(app: &mut CApp) -> bool { app.app.update() }
 
 #[no_mangle]
-pub extern "C" fn pixelport_get_root(app: &mut App) -> i64 {
-    match app.document.get_root() {
-        Some(id) => id as i64,
-        None => -1
+pub extern "C" fn pixelport_request(app: &mut CApp, request: *mut c_char) -> u64 {
+    app.request_counter += 1;
+    let channel_id = format!("{}", app.request_counter);
+    let request = unsafe { CStr::from_ptr(request).to_string_lossy().into_owned() };
+    match IncomingMessage::from_string(&app.app.document.translater, &mut app.app.document.bus, ClientId::CAPI, channel_id, &request) {
+        Ok(request) => { app.app.handle_request(request); },
+        Err(err) => unimplemented!()
     }
-}
-
-#[no_mangle]
-pub extern "C" fn pixelport_append_entity(app: &mut App, parent_id: i64,
-    type_name: *mut c_char) -> i64 {
-    let parent_id: Option<EntityId> = if parent_id >= 0 { Some(parent_id as u64) } else { None };
-    let type_name = unsafe { CStr::from_ptr(type_name).to_string_lossy().into_owned() };
-    match app.document.append_entity(None, parent_id, &type_name, None) {
-        Ok(id) => id as i64,
-        Err(err) => {
-            println!("pixelport_append_entity failed with: {:?}", err);
-            -1
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn pixelport_set_property(app: &mut App, entity_id: u64,
-    property_key: *mut c_char, expression: *mut c_char) {
-    let property_key = unsafe { CStr::from_ptr(property_key).to_string_lossy().into_owned() };
-    let expression = unsafe { CStr::from_ptr(expression).to_string_lossy().into_owned() };
-    let expression = Pon::from_string(&expression).unwrap();
-    app.document.set_property(entity_id, &property_key, expression, false);
+    app.request_counter
 }

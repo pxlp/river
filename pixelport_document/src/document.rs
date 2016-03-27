@@ -340,9 +340,9 @@ impl Document {
 
     fn resolve_pon_dependencies(&mut self, entity_id: EntityId, node: &mut Pon) -> Result<(), DocError> {
         match node {
-            &mut Pon::PonCall(box PonCall { ref mut arg, .. }) =>
+            &mut Pon::Call(box PonCall { ref mut arg, .. }) =>
                 try!(self.resolve_pon_dependencies(entity_id, arg)),
-            &mut Pon::DependencyReference(ref named_prop_ref, ref mut resolved) => {
+            &mut Pon::DepPropRef(ref named_prop_ref, ref mut resolved) => {
                 let prop_ref = try!(named_prop_ref.resolve(&self, entity_id));
                 *resolved = Some(prop_ref);
             },

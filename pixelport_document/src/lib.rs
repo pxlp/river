@@ -8,6 +8,7 @@ extern crate log;
 #[macro_use]
 extern crate mopa;
 extern crate pad;
+extern crate regex;
 
 #[macro_use]
 pub mod hashmap_macro;
@@ -24,6 +25,9 @@ pub mod entity_match;
 mod inverse_dependencies_counter;
 pub mod bus;
 pub mod topic;
+pub mod channel;
+pub mod document_channels;
+mod doc_stream;
 
 pub use pon::*;
 #[macro_use]
@@ -36,3 +40,5 @@ pub use selection::*;
 pub use entity_match::*;
 pub use bus::*;
 pub use topic::*;
+pub use channel::*;
+pub use document_channels::*;

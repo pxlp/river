@@ -1,0 +1,129 @@
+{
+  var types = require('./pon_types');
+}
+
+body
+  = sep* n:pon sep* { return n; }
+
+pon
+  = number_pon / string_pon / boolean_pon / object_pon / array_pon / nil_pon / call_pon / dep_propref_pon / propref_pon / selector_pon
+
+call_pon
+  = function_name:identifier sep* arg:pon sep* {
+    return new types.PonCall(function_name, arg);
+  }
+
+dep_propref_pon
+  = "@" propref:propref {
+    return new types.PonDepPropRef(propref);
+  }
+
+propref_pon
+  = propref:propref { return new types.PonPropRef(propref) }
+
+selector_pon
+  = "" selector:selector {
+    return new types.PonSelector(selector);
+  }
+
+array_pon
+  = "[" sep* items:(sep* v:pon sep* "," sep* { return v; })* sep* last:pon? sep* ","? sep* "]" {
+    if (last) items.push(last);
+    return items;
+  }
+
+object_pon
+  = "{" sep* items:(sep* k:keyval sep* "," sep* { return k; })* sep* last:keyval? sep* ","? sep* "}" {
+    if (last) items.push(last);
+    let rv = {};
+    items.forEach(entry => rv[entry.k] = entry.v);
+    return rv;
+  }
+
+keyval
+  = sep* k:identifier sep* ":" sep* v:pon sep* { return { k: k, v: v }; }
+
+number_pon
+  = [-]?[0-9]+[.][0-9]+ { return parseFloat(text()); }
+  / [-]?[0-9]+ { return parseFloat(text()); }
+
+nil_pon
+  = "(" sep* ")" { return null; }
+
+string_pon
+  = "'" s:(char* { return text(); } ) "'" { return s; }
+
+boolean_pon
+  = "true" { return true; }
+  / "false" { return false; }
+
+
+
+
+propref
+  = "" selector:selector sep* "." sep* property_key:identifier {
+    return selector + "." + property_key;
+  }
+
+selector_root
+  = "this" sep* { return "this"; }
+  / "root" sep* { return "root"; }
+  / "parent" sep* { return "parent"; }
+  / name:identifier sep* { return name; }
+  / id:entity_id sep* { return id; }
+
+selector_path
+  = "/" sep* ematch:entity_match sep* { return "/" + ematch; }
+  / ":!" sep* ematch:entity_match sep* { return ":!" + ematch; }
+  / ":" sep* ematch:entity_match sep* { return ":" + ematch; }
+  / "|parent|" sep* { return "|parent|"; }
+  / "|prev-sibling|" sep* { return "|prev-sibling|"; }
+  / "|next-sibling|" sep* { return "|next-sibling|"; }
+
+selector
+  = root:selector_root sep* path:(selector_path)* {
+    return root + path;
+  }
+
+entity_match
+  = sep* "*" sep* {
+    return "*";
+  }
+  / sep* type_name:identifier sep* {
+    return type_name;
+  }
+  / sep* "[" sep* a:entity_match sep* "&&" sep* b:entity_match sep* "]" sep* {
+    return "[" + a + " && " + b + "]";
+  }
+  / sep* "[" sep* a:entity_match sep* "||" sep* b:entity_match sep* "]" sep* {
+    return "[" + a + " || " + b + "]";
+  }
+  / sep* "[" sep* "name" sep* "=" sep* name:identifier sep* "]" sep* {
+    return "[name=" + name + "]";
+  }
+  / sep* "[" sep* prop:identifier sep* "!=" sep* val:pon sep* "]" sep* {
+    return "[" + prop + "!=" + val + "]";
+  }
+  / sep* "[" sep* prop:identifier sep* "=" sep* val:pon sep* "]" sep* {
+    return "[" + prop + "=" + val + "]";
+  }
+  / sep* "[" sep* prop:identifier sep* "]" sep* {
+    return "[" + prop + "]";
+  }
+
+identifier
+  = [a-zA-Z_][a-zA-Z_0-9]* { return text(); }
+
+entity_id
+  = "#" id:([0-9]+ { return text(); }) { return text(); }
+
+char
+  = [^\\'] { return text().slice(1) }
+  / [\\]. { return text()[1] }
+
+comment = "//" [^\n]*
+whitespace = [ \t\r\n]
+
+sep
+  = whitespace
+  / comment

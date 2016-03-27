@@ -5,42 +5,69 @@ use std::collections::HashMap;
 
 #[pub]
 body -> Pon
-  = sep* n:node sep* { n }
+  = sep* n:pon sep* { n }
 
-node -> Pon
-  = number / string / boolean / object / array / nil / transform / dependency_reference / reference_pon / selector_pon
+pon -> Pon
+  = number_pon / string_pon / boolean_pon / object_pon / array_pon / nil_pon / call_pon / dep_propref_pon / propref_pon / selector_pon
 
-transform -> Pon
-  = function_name:identifier sep* arg:node sep* {
-    Pon::PonCall(Box::new(PonCall {
+call_pon -> Pon
+  = function_name:identifier sep* arg:pon sep* {
+    Pon::Call(Box::new(PonCall {
       function_name: function_name.to_string(),
       arg: arg
     }))
   }
 
-dependency_reference -> Pon
-  = "@" selector:selector sep* "." sep* property_name:identifier {
-    Pon::DependencyReference(NamedPropRef {
-      selector: selector,
-      property_key: property_name.to_string(),
-    }, None)
+dep_propref_pon -> Pon
+  = "@" propref:propref {
+    Pon::DepPropRef(propref, None)
   }
 
-reference_pon -> Pon
-  = reference:reference { Pon::Reference(reference) }
-
-#[pub]
-reference -> NamedPropRef
-  = "" selector:selector sep* "." sep* property_name:identifier {
-    NamedPropRef {
-      selector: selector,
-      property_key: property_name.to_string(),
-    }
-  }
+propref_pon -> Pon
+  = propref:propref { Pon::PropRef(propref) }
 
 selector_pon -> Pon
   = "" selector:selector {
     Pon::Selector(selector)
+  }
+
+array_pon -> Pon
+  = "[" sep* pons:(sep* v:pon sep* { v }) ** "," sep* ","? sep* "]" {
+    Pon::Array(pons)
+  }
+
+object_pon -> Pon
+  = "{" sep* kvs:(sep* k:identifier sep* ":" sep* v:pon sep* { (k, v) }) ** "," sep* ","? sep* "}" {
+    let mut rv = HashMap::new();
+    for &(ref k, ref v) in kvs.iter() {
+      rv.insert(k.clone(), v.clone());
+    };
+    Pon::Object(rv)
+  }
+
+number_pon -> Pon
+  = [-]?[0-9]+[.][0-9]+ { Pon::Number(match_str.parse().unwrap()) }
+  / [-]?[0-9]+ { Pon::Number(match_str.parse().unwrap()) }
+
+nil_pon -> Pon
+  = "(" sep* ")" { Pon::Nil }
+
+string_pon -> Pon
+  = "'" s:char* "'" { Pon::String(s.iter().cloned().collect::<String>()) }
+
+boolean_pon -> Pon
+  = "true" { Pon::Boolean(true) }
+  / "false" { Pon::Boolean(false) }
+
+
+
+#[pub]
+propref -> NamedPropRef
+  = "" selector:selector sep* "." sep* property_key:identifier {
+    NamedPropRef {
+      selector: selector,
+      property_key: property_key.to_string(),
+    }
   }
 
 selector_root -> Selector
@@ -82,59 +109,25 @@ entity_match -> EntityMatch
   / sep* "[" sep* "name" sep* "=" sep* name:identifier sep* "]" sep* {
     EntityMatch::Name(name)
   }
-  / sep* "[" sep* prop:identifier sep* "!=" sep* val:node sep* "]" sep* {
+  / sep* "[" sep* prop:identifier sep* "!=" sep* val:pon sep* "]" sep* {
     EntityMatch::PropertyValueNotEquals { property: prop, value: Box::new(val) }
   }
-  / sep* "[" sep* prop:identifier sep* "=" sep* val:node sep* "]" sep* {
+  / sep* "[" sep* prop:identifier sep* "=" sep* val:pon sep* "]" sep* {
     EntityMatch::PropertyValueEquals { property: prop, value: Box::new(val) }
   }
   / sep* "[" sep* prop:identifier sep* "]" sep* {
     EntityMatch::PropertyExists(prop)
   }
 
-array -> Pon
-  = "[" sep* nodes:array_item ** "," sep* ","? sep* "]" {
-    Pon::Array(nodes)
-  }
-
-array_item -> Pon
-  = sep* v:node sep* { v }
-
-object -> Pon
-  = "{" sep* kvs:keyval ** "," sep* ","? sep* "}" {
-    let mut rv = HashMap::new();
-    for &(ref k, ref v) in kvs.iter() {
-      rv.insert(k.clone(), v.clone());
-    };
-    Pon::Object(rv)
-  }
-
-keyval -> (String, Pon)
-  = sep* k:identifier sep* ":" sep* v:node sep* { (k, v) }
-
 identifier -> String
   = [a-zA-Z_][a-zA-Z_0-9]* { match_str.to_string() }
-
-number -> Pon
-  = [-]?[0-9]+[.][0-9]+ { Pon::Number(match_str.parse().unwrap()) }
-  / [-]?[0-9]+ { Pon::Number(match_str.parse().unwrap()) }
 
 entity_id -> u64
   = "#" id:([0-9]+ { match_str.parse().unwrap() }) { id }
 
-nil -> Pon
-  = "(" sep* ")" { Pon::Nil }
-
-string -> Pon
-  = "'" s:char* "'" { Pon::String(s.iter().cloned().collect::<String>()) }
-
 char -> char
   = [^\\'] { match_str.chars().next().unwrap() }
   / [\\]. { match_str.chars().nth(1).unwrap() }
-
-boolean -> Pon
-  = "true" { Pon::Boolean(true) }
-  / "false" { Pon::Boolean(false) }
 
 comment = "//" [^\n]*
 whitespace = [ \t\r\n]

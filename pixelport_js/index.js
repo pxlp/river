@@ -7,203 +7,79 @@ var byline = require('byline');
 var EventEmitter = require('events');
 var util = require('util');
 var debug = require('debug')('pixelport');
-var debug_request = require('debug')('pixelport:request');
-var debug_response = require('debug')('pixelport:response');
+var debug_out = require('debug')('pixelport:out');
+var debug_in_ok = require('debug')('pixelport:in:ok');
+var debug_in_err = require('debug')('pixelport:in:err');
 var debug_window_stdout = require('debug')('pixelport:window:stdout');
 var debug_window_stderr = require('debug')('pixelport:window:stderr');
 var reconnect = require('reconnect-core')(function () {
   return net.connect.apply(null, arguments);
 });
+var ponParse = require('./pon');
+var ponTypes = require('./pon_types');
 
 
 class Pixelport extends EventEmitter {
   constructor() {
     super();
     this.client = null;
-    this.stream = null;
+    this._writeStream = null;
     this.process = null;
-    this.pending = {};
-    this.rpcIdCounter = 1;
-    this.subdocStreamIdCounter = 1;
-    this.subDocStreams = {};
-  }
-  static ponEscape(str) {
-    return str.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-  }
-  static ponUnescape(str) {
-    return str.replace(/\\\\/g, "\\").replace(/\\'/g, "'");
+    this.channels = {};
+    this.channelCounter = 1;
+    this.on('newListener', (event) => {
+      if (event == 'frame' && !this.frameStream) {
+        this.frameStream = this.stream('frame_stream_create ()');
+        this.frameStream.on('message', (frame) => this.emit('frame', frame));
+      }
+    });
+    this.on('removeListener', (event) => {
+      if (event == 'frame' && this.frameStream && this.listenerCount('frame') == 0) {
+        this.frameStream.destroy();
+        delete this.frameStream;
+      }
+    });
   }
 
-  _request(message) {
-    var requestId = this.rpcIdCounter++;
+  request(message) {
+    if (message instanceof Object) {
+      message = Pixelport.stringifyPon(message);
+    }
+    var channelId = this.channelCounter++;
+    message = message.replace(/\n/g, '');
     return new Promise((resolve, reject) => {
-      var cmd = {
-        Request: {
-          request_id: requestId,
-          request: message
-        }
+      this.channels[channelId] = (status, body) => {
+        if (status == 'ok') resolve(body);
+        else reject(new Promise.OperationalError(body));
+        delete this.channels[channelId];
       };
-      debug_request("id=%d, %o", requestId, message);
-      this.pending[requestId] = { resolve: resolve, reject: reject };
-      this.stream.write(JSON.stringify(cmd) + '\r\n');
+      this._writeMessage(channelId + ' ' + message);
     });
   }
 
-  setProperties(entitySelector, properties) {
-    Object.keys(properties).forEach(function(key) {
-      properties[key] = '' + properties[key]; // Make sure properties are strings
-    });
-    return this._request({
-      SetProperties: {
-        entity_selector: '' + entitySelector,
-        properties: properties
+  stream(message) {
+    if (message instanceof Object) {
+      message = Pixelport.stringifyPon(message);
+    }
+    var channelId = this.channelCounter++;
+    let stream = new Stream(this, channelId);
+    this.channels[channelId] = (status, body) => {
+      if (status == 'ok') stream.emit('message', body);
+      else {
+        body.toString = function() {
+          return Pixelport.stringifyPon(body);
+        };
+        stream.emit('error', body);
+        delete this.channels[channelId];
       }
-    });
+    };
+    this._writeMessage(channelId + ' ' + message);
+    return stream;
   }
 
-  appendEntity(opts) {
-    opts.properties = opts.properties || {};
-    Object.keys(opts.properties).forEach(function(key) {
-      opts.properties[key] = '' + opts.properties[key]; // Make sure properties are strings
-    });
-    return this._request({
-      AppendEntity: {
-        parent_selector: opts.parentSelector,
-        type_name: opts.typeName,
-        properties: opts.properties,
-        entity_id: opts.entityId
-      }
-    }).then(function(resp) {
-      return resp.EntityAdded;
-    });
-  }
-
-  removeEntity(entitySelector) {
-    return this._request({
-      RemoveEntity: {
-        entity_selector: entitySelector
-      }
-    });
-  }
-
-  clearChildren(entitySelector) {
-    return this._request({
-      ClearChildren: {
-        entity_selector: entitySelector
-      }
-    });
-  }
-
-  subDocStreamCreate(opts) {
-    opts.id = opts.id || ('subdocstream-' + this.subdocStreamIdCounter++);
-    var subDocStream = new SubDocStream(this, opts.id);
-    this.subDocStreams[opts.id] = subDocStream;
-    this._request({
-      SubDocStreamCreate: {
-        id: opts.id,
-        selector: opts.selector,
-        property_regex: opts.property_regex
-      }
-    });
-    return subDocStream;
-  }
-
-  subDocStreamDestroy(id) {
-    return this._request({
-      SubDocStreamDestroy: {
-        id: id
-      }
-    });
-  }
-
-  reserveEntityIds(count) {
-    return this._request({
-      ReserveEntityIds: { count: count }
-    }).then(function(resp) {
-      return resp.EntityIdsReserved;
-    });
-  }
-
-  screenshot() {
-    return this._request({
-      Screenshot: []
-    }).then(function(resp) {
-      return resp.PngImage;
-    });
-  }
-
-  screenshotToFile(path) {
-    return this._request({
-      ScreenshotToFile: { path: path }
-    });
-  }
-
-  pause() {
-    return this._request({
-      Pause: []
-    });
-  }
-
-  cont() {
-    return this._request({
-      Continue: []
-    });
-  }
-
-  step() {
-    return this._request({
-      Step: []
-    });
-  }
-
-  viewportDumpResources() {
-    return this._request({
-      ViewportDumpResources: []
-    });
-  }
-
-
-  entityRenderersBounding(entitySelector) {
-    return this._request({
-      EntityRenderersBounding: {
-        entity_selector: entitySelector
-      }
-    }).then(function(resp) {
-      return resp.EntityRenderersBounding;
-    });
-  }
-
-  visualizeEntityRenderersBounding(entitySelector) {
-    return this._request({
-      VisualizeEntityRenderersBounding: {
-        entity_selector: entitySelector
-      }
-    });
-  }
-
-  fakeWindowEvent(event) {
-    return this._request({
-      FakeWindowEvent: {
-        event: event
-      }
-    });
-  }
-
-  listTextures() {
-    return this._request({
-      ListTextures: []
-    }).then(res => res.Textures);
-  }
-
-  getTextureContent(id) {
-    return this._request({
-      GetTextureContent: { id: id }
-    }).then(res => res.RawImage);
-  }
-
-  awaitAllResources() {
-    return this._request({
-      AwaitAllResources: []
+  closeStream(channelId) {
+    return this.request(`close_stream { channel_id: '${channelId}' }`).then(() => {
+      delete this.channels[channelId];
     });
   }
 
@@ -214,9 +90,9 @@ class Pixelport extends EventEmitter {
   // Helpers
   waitForEntity(selector) {
     return new Promise((resolve, reject) => {
-      let stream = this.subDocStreamCreate({ selector: selector });
-      stream.on('cycle', (changes) => {
-        if (changes.entities_added.length > 0) {
+      let stream = this.stream(`doc_stream_create { selector: ${selector} }`);
+      stream.on('message', (changes) => {
+        if (changes.arg.entities_added.length > 0) {
           stream.destroy();
           resolve();
         }
@@ -226,9 +102,9 @@ class Pixelport extends EventEmitter {
 
   waitForPropertyChange(selector, property) {
     return new Promise((resolve, reject) => {
-      let stream = this.subDocStreamCreate({ selector: selector, property_regex: property });
-      stream.on('cycle', (changes) => {
-        if (changes.updated_properties.length > 0) {
+      let stream = this.stream(`doc_stream_create { selector: ${selector}, property_regex: '${property}' }`);
+      stream.on('message', (changes) => {
+        if (changes.arg.updated_properties.length > 0) {
           stream.destroy();
           resolve();
         }
@@ -251,41 +127,32 @@ class Pixelport extends EventEmitter {
   }
 
   fakeMoveMouse(position) {
-    return this.fakeWindowEvent({ MouseMoved: [position.x, position.y] });
+    return this.request(`fake_window_event { event: window_event_mouse_moved { x: ${position.x}, y: ${position.y} } }`);
   }
 
   fakeClick() {
-    return this.fakeWindowEvent({ MouseInput: { state: { Pressed: [] }, button: { Left: [] } } });
+    return this.request(`fake_window_event { event: window_event_mouse_input { state: 'pressed', button: 'left' } }`);
+  }
+
+  _writeMessage(message) {
+    debug_out("%s", message);
+    this._writeStream.write(message + '\n');
   }
 
   _handleMessage(message) {
-    if (message.Frame) {
-      this.emit('frame', message.Frame);
-    } else if (message.Response) {
-      var pending = this.pending[message.Response.request_id];
-      if (pending) {
-        delete this.pending[message.Response.request_id];
-        if (message.Response.response.Ok) {
-          if (message.Response.response.Ok.data.PngImage) { // PngImages are massive, hiding it from the console
-            debug_response("id=%d, OK PngImage { content: [%d bytes] }", message.Response.request_id,
-              message.Response.response.Ok.data.PngImage.content.length);
-          } else if (message.Response.response.Ok.data.RawImage) { // RawImage are also massive
-            let img = message.Response.response.Ok.data.RawImage;
-            debug_response("id=%d, OK RawImage { content: [%d bytes], width: %d, height: %d, pixel_format: %s, pixel_type: %s }",
-              message.Response.request_id, img.content.length, img.width, img.height, img.pixel_format, img.pixel_type);
-          } else {
-            debug_response("id=%d, OK %o", message.Response.request_id, message.Response.response.Ok.data);
-          }
-          pending.resolve(message.Response.response.Ok.data);
-        } else {
-          debug_response("id=%d, FAIL %o", message.Response.request_id, message.Response.response.Fail.error);
-          pending.reject(new Promise.OperationalError(JSON.stringify(message.Response.response.Fail.error)));
-        }
-      }
-    } else if (message.SubDocStreamCycle) {
-      let cycle = message.SubDocStreamCycle;
-      var subDocStream = this.subDocStreams[cycle.sub_doc_stream_id];
-      subDocStream.emit('cycle', cycle);
+    message = message.split(' ');
+    let channelId = message[0];
+    let status = message[1];
+    if (status == 'ok') {
+      debug_in_ok("%s", message);
+    } else {
+      debug_in_err("%s", message);
+    }
+    let bodyString = message.slice(2).join(' ');
+    let body = Pixelport.parsePon(bodyString);
+    var channel = this.channels[channelId];
+    if (channel) {
+      channel(status, body);
     }
   }
 
@@ -303,13 +170,12 @@ class Pixelport extends EventEmitter {
       var streamPromiseResolve = null;
       var streamPromise = new Promise((resolve) => streamPromiseResolve = resolve );
       this.client = reconnect(reconnectOpts, (stream) => {
-        this.stream = stream;
+        this._writeStream = stream;
         //stream.readable = true; // Just to get byline working
         var lines = byline(stream);
 
         lines.on('data', line => {
-          var message = JSON.parse(line);
-          this._handleMessage(message);
+          this._handleMessage(line.toString());
         });
         streamPromiseResolve();
       })
@@ -401,34 +267,63 @@ $ export PIXELPORT_APP_PATH=~/pixelport/pixelport_app/target/release/pixelport_a
     }
   }
 
+  static ponEscape(str) {
+    return str.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  }
+  static ponUnescape(str) {
+    return str.replace(/\\\\/g, "\\").replace(/\\'/g, "'");
+  }
+  static parsePon(str) {
+    return ponParse.parse(str);
+  }
+  static stringifyPon(pon) {
+    if (pon === null) {
+      return "()";
+    } else if (pon instanceof ponTypes.PonCall) {
+      return pon.functionName + ' ' + Pixelport.stringifyPon(pon.arg);
+    } else if (pon instanceof ponTypes.PonPropRef) {
+      return pon.propref;
+    } else if (pon instanceof ponTypes.PonDepPropRef) {
+      return "@" + pon.propref;
+    } else if (pon instanceof ponTypes.PonSelector) {
+      return pon.selector;
+    } else if (Array.isArray(pon)) {
+      return '[ ' + pon.map(x => Pixelport.stringifyPon(x)).join(', ') + ' ]';
+    } else if (pon instanceof Object) {
+      return '{ ' + Object.keys(pon)
+        .filter(k => pon[k] !== null)
+        .map(k => k + ': ' + Pixelport.stringifyPon(pon[k])).join(', ') + ' }';
+    } else if (typeof pon === 'string') {
+      return "'" + pon + "'";
+    } else {
+      return "" + pon;
+    }
+  }
   static stringifyVec3(v) {
-    return 'vec3 { x: ' + (v.x || 0.0) + ', y: ' + (v.y || 0.0) + ', z: ' + (v.z || 0) + '}';
+    return Pixelport.stringifyPon(new ponTypes.PonCall('vec3', v));
   }
-  static parseVec3(string) {
-    let nums = string.match(/vec3\s*\{([^}]*)\}/);
-    let vec = { x: 0, y: 0, z: 0 };
-    nums[1].split(",").map(v => v.trim()).filter(v => v).forEach(v => {
-      let m = v.split(":");
-      let char = m[0].trim();
-      let val = parseFloat(m[1].trim());
-      vec[char] = val;
-    });
-    return vec;
-  }
-  static colorToString(v) {
-    return 'color { r: ' + (v.r || 0.0) + ', g: ' + (v.g || 0.0) + ', b: ' + (v.b || 0) + ', a: ' + (v.a || 1) + '}';
+  static parseVec3(str) {
+    let vec3 = Pixelport.parsePon(str).arg;
+    vec3.x = vec3.x || 0;
+    vec3.y = vec3.y || 0;
+    vec3.z = vec3.z || 0;
+    return vec3;
   }
 }
+Pixelport.PonCall = ponTypes.PonCall;
+Pixelport.PonPropRef = ponTypes.PonPropRef;
+Pixelport.PonDepPropRef = ponTypes.PonDepPropRef;
+Pixelport.PonSelector = ponTypes.PonSelector;
 
 module.exports = Pixelport;
 
-class SubDocStream extends EventEmitter {
+class Stream extends EventEmitter {
   constructor(pixelport, id) {
     super();
     this.pixelport = pixelport;
     this.id = id;
   }
   destroy() {
-    return this.pixelport.subDocStreamDestroy(this.id);
+    return this.pixelport.closeStream(this.id);
   }
 }

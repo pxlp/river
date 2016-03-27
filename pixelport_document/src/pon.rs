@@ -30,7 +30,7 @@ impl NamedPropRef {
         }
     }
     pub fn from_string(string: &str) -> Result<NamedPropRef, PonParseError> {
-        pon_peg::reference(string)
+        pon_peg::propref(string)
     }
     pub fn resolve(&self, document: &Document, start_entity_id: EntityId) -> Result<PropRef, DocError> {
         let entity_id = try!(self.selector.find_first(document, start_entity_id));

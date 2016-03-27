@@ -15,6 +15,7 @@ var reconnect = require('reconnect-core')(function () {
   return net.connect.apply(null, arguments);
 });
 var ponParse = require('./pon');
+var ponTypes = require('./pon_types');
 
 
 class Pixelport extends EventEmitter {
@@ -271,16 +272,24 @@ $ export PIXELPORT_APP_PATH=~/pixelport/pixelport_app/target/release/pixelport_a
     return ponParse.parse(str);
   }
   static stringifyPon(pon) {
-    if (pon._transform) {
-      return pon._transform + ' ' + Pixelport.stringifyPon(pon.arg);
+    if (pon instanceof ponTypes.PonCall) {
+      return pon.name + ' ' + Pixelport.stringifyPon(pon.arg);
+    } else if (pon instanceof ponTypes.PonPropRef) {
+      return pon.propref;
+    } else if (pon instanceof ponTypes.PonDepPropRef) {
+      return "@" + pon.propref;
+    } else if (pon instanceof ponTypes.PonSelector) {
+      return pon.selector;
     } else if (Array.isArray(pon)) {
       return '[ ' + pon.map(x => Pixelport.stringifyPon(x)).join(', ') + ' ]';
     } else if (pon instanceof Object) {
       return '{ ' + Object.keys(pon)
         .filter(k => pon[k] !== null)
         .map(k => k + ': ' + Pixelport.stringifyPon(pon[k])).join(', ') + ' }';
+    } else if (typeof pon === 'string') {
+      return "'" + pon + "'";
     } else {
-      return pon;
+      return "" + pon;
     }
   }
   static stringifyVec3(v) {
@@ -297,9 +306,10 @@ $ export PIXELPORT_APP_PATH=~/pixelport/pixelport_app/target/release/pixelport_a
     return Pixelport.stringifyPon({ _transform: 'color', arg: v });
   }
 }
-Pixelport.ponConstruct = {
-  call: function(name, arg) { return { _transform: name, arg: arg } }
-};
+Pixelport.PonCall = ponTypes.PonCall;
+Pixelport.PonPropRef = ponTypes.PonPropRef;
+Pixelport.PonDepPropRef = ponTypes.PonDepPropRef;
+Pixelport.PonSelector = ponTypes.PonSelector;
 
 module.exports = Pixelport;
 

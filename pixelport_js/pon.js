@@ -53,7 +53,7 @@ module.exports = (function() {
             return { _type: 'named_prop_ref', selector: selector, property_key: property_key }
           },
         peg$c10 = function(selector) {
-            return { _type: 'selector', selector: selector };
+            return selector;
           },
         peg$c11 = "this",
         peg$c12 = { type: "literal", value: "this", description: "\"this\"" },
@@ -162,7 +162,7 @@ module.exports = (function() {
         peg$c88 = function() { return parseFloat(text()); },
         peg$c89 = "#",
         peg$c90 = { type: "literal", value: "#", description: "\"#\"" },
-        peg$c91 = function() { return text; },
+        peg$c91 = function(id) { return text(); },
         peg$c92 = "(",
         peg$c93 = { type: "literal", value: "(", description: "\"(\"" },
         peg$c94 = ")",
@@ -2638,12 +2638,12 @@ module.exports = (function() {
         }
         if (s3 !== peg$FAILED) {
           peg$savedPos = s2;
-          s3 = peg$c91();
+          s3 = peg$c81();
         }
         s2 = s3;
         if (s2 !== peg$FAILED) {
           peg$savedPos = s0;
-          s1 = peg$c21(s2);
+          s1 = peg$c91(s2);
           s0 = s1;
         } else {
           peg$currPos = s0;

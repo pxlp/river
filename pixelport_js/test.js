@@ -61,6 +61,10 @@ suite('pon parsing', function() {
     assert.deepEqual(Pixelport.parsePon("test { x: 'hello' }"), { _transform: 'test', arg: { x: "'hello'" } });
   });
 
+  test('selector', function() {
+    assert.deepEqual(Pixelport.parsePon("test { x: #15 }"), { _transform: 'test', arg: { x: "#15" } });
+  });
+
 });
 
 suite('pon stringify', function() {

@@ -24,7 +24,7 @@ reference
 
 selector_pon
   = "" selector:selector {
-    return { _type: 'selector', selector: selector };
+    return selector;
   }
 
 selector_root
@@ -108,7 +108,7 @@ number
   / [-]?[0-9]+ { return parseFloat(text()); }
 
 entity_id
-  = "#" id:([0-9]+ { return text; }) { return id; }
+  = "#" id:([0-9]+ { return text(); }) { return text(); }
 
 nil
   = "(" sep* ")" { return { _type: 'nil' }; }

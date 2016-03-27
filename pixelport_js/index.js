@@ -8,7 +8,8 @@ var EventEmitter = require('events');
 var util = require('util');
 var debug = require('debug')('pixelport');
 var debug_out = require('debug')('pixelport:out');
-var debug_in = require('debug')('pixelport:in');
+var debug_in_ok = require('debug')('pixelport:in:ok');
+var debug_in_err = require('debug')('pixelport:in:err');
 var debug_window_stdout = require('debug')('pixelport:window:stdout');
 var debug_window_stderr = require('debug')('pixelport:window:stderr');
 var reconnect = require('reconnect-core')(function () {
@@ -139,10 +140,14 @@ class Pixelport extends EventEmitter {
   }
 
   _handleMessage(message) {
-    debug_in("%s", message);
     message = message.split(' ');
     let channelId = message[0];
     let status = message[1];
+    if (status == 'ok') {
+      debug_in_ok("%s", message);
+    } else {
+      debug_in_err("%s", message);
+    }
     let bodyString = message.slice(2).join(' ');
     let body = Pixelport.parsePon(bodyString);
     var channel = this.channels[channelId];

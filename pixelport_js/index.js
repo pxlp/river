@@ -300,7 +300,7 @@ $ export PIXELPORT_APP_PATH=~/pixelport/pixelport_app/target/release/pixelport_a
     }
   }
   static stringifyVec3(v) {
-    return Pixelport.stringifyPon({ _transform: 'vec3', arg: v });
+    return Pixelport.stringifyPon(new ponTypes.PonCall('vec3', v));
   }
   static parseVec3(str) {
     let vec3 = Pixelport.parsePon(str).arg;

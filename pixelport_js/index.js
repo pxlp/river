@@ -64,6 +64,9 @@ class Pixelport extends EventEmitter {
     this.channels[channelId] = (status, body) => {
       if (status == 'ok') stream.emit('message', body);
       else {
+        body.toString = function() {
+          return Pixelport.stringifyPon(body);
+        };
         stream.emit('error', body);
         delete this.channels[channelId];
       }
@@ -268,7 +271,9 @@ $ export PIXELPORT_APP_PATH=~/pixelport/pixelport_app/target/release/pixelport_a
     return ponParse.parse(str);
   }
   static stringifyPon(pon) {
-    if (pon._transform) {
+    if (pon === null) {
+      return "()";
+    } else if (pon._transform) {
       return pon._transform + ' ' + Pixelport.stringifyPon(pon.arg);
     } else if (Array.isArray(pon)) {
       return '[ ' + pon.map(x => Pixelport.stringifyPon(x)).join(', ') + ' ]';

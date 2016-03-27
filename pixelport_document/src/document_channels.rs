@@ -57,9 +57,12 @@ pub struct CloseStreamRequest {
 
 
 macro_rules! try_find_first {
-    ($inc:expr, $selector:expr, $doc:expr, $root_id:expr) => (match $selector.find_first($doc, $root_id) {
+    ($inc:expr, $out:expr, $selector:expr, $doc:expr, $root_id:expr) => (match $selector.find_first($doc, $root_id) {
         Ok(val) => val,
-        Err(err) => return vec![$inc.bad_request(&format!("No such entity: {}", $selector.to_string()))]
+        Err(err) => {
+            $out.push($inc.bad_request(&format!("No such entity: {}", $selector.to_string())));
+            return true;
+        }
     })
 }
 
@@ -86,50 +89,58 @@ impl DocumentChannels {
         let kv: Vec<((ClientId, ChannelId), DocStream)> = { self.doc_streams.drain().collect() };
         self.doc_streams = kv.into_iter().filter(|&((ref cid, _), _)| cid != client_id).collect();
     }
-    pub fn handle_request(&mut self, inc: &IncomingMessage, doc: &mut Document) -> Vec<OutgoingMessage> {
+    pub fn handle_request(&mut self, inc: &IncomingMessage, out: &mut Vec<OutgoingMessage>, doc: &mut Document) -> bool {
         if let Some(set_properties) = (*inc.message).downcast_ref::<SetPropertiesRequest>() {
             let root_id = doc.get_root().expect("Document missing root");
-            let ent = try_find_first!(inc, set_properties.entity, doc, root_id);
+            let ent = try_find_first!(inc, out, set_properties.entity, doc, root_id);
             for (key, pon) in &set_properties.properties {
                 if let Err(err) = doc.set_property(ent, &key, pon.clone(), false) {
                     warn!("Failed to set property {} {}, error: {:?}", key, pon.to_string(), err);
                 }
             }
-            return vec![inc.ok(())];
+            out.push(inc.ok(()));
+            return true;
         }
         if let Some(append_entity) = (*inc.message).downcast_ref::<AppendEntityRequest>() {
             let root_id = doc.get_root().expect("AppendEntity Document missing root");
-            let parent_id = try_find_first!(inc, append_entity.parent, doc, root_id);
+            let parent_id = try_find_first!(inc, out, append_entity.parent, doc, root_id);
             let ent = match doc.append_entity(append_entity.entity_id, Some(parent_id), &append_entity.type_name, None) {
                 Ok(v) => v,
-                Err(err) => return vec![inc.bad_request(&err.to_string())]
+                Err(err) => {
+                    out.push(inc.bad_request(&err.to_string()));
+                    return true;
+                }
             };
             for (key, pon) in &append_entity.properties {
                 if let Err(err) = doc.set_property(ent, &key, pon.clone(), false) {
                     warn!("AppendEntity Failed to set property {} {}, error: {:?}", key, pon.to_string(), err);
                 }
             }
-            return vec![inc.ok(ent)];
+            out.push(inc.ok(ent));
+            return true;
         }
         if let Some(remove_entity) = (*inc.message).downcast_ref::<RemoveEntityRequest>() {
             let root_id = doc.get_root().expect("RemoveEntity Document missing root");
-            let entity_id = try_find_first!(inc, remove_entity.entity, doc, root_id);
-            return vec![match doc.remove_entity(entity_id) {
+            let entity_id = try_find_first!(inc, out, remove_entity.entity, doc, root_id);
+            out.push(match doc.remove_entity(entity_id) {
                 Ok(()) => inc.ok(()),
                 Err(err) => inc.bad_request(&format!("Failed to remove entity {}: {:?}", remove_entity.entity.to_string(), err))
-            }];
+            });
+            return true;
         }
         if let Some(clear_children) = (*inc.message).downcast_ref::<ClearChildrenRequest>() {
             let root_id = doc.get_root().expect("ClearChildren Document missing root");
-            let entity_id = try_find_first!(inc, clear_children.entity, doc, root_id);
-            return vec![match doc.clear_children(entity_id) {
+            let entity_id = try_find_first!(inc, out, clear_children.entity, doc, root_id);
+            out.push(match doc.clear_children(entity_id) {
                 Ok(()) => inc.ok(()),
                 Err(err) => inc.bad_request(&format!("ClearChildren failed to clear children of {}: {:?}", clear_children.entity.to_string(), err))
-            }];
+            });
+            return true;
         }
         if let Some(reserve_entity_ids) = (*inc.message).downcast_ref::<ReserveEntityIdsRequest>() {
             let res = doc.reserve_entity_ids(reserve_entity_ids.count);
-            return vec![inc.ok(vec![res.min, res.max])]
+            out.push(inc.ok(vec![res.min, res.max]));
+            return true;
         }
         if let Some(doc_stream_create) = (*inc.message).downcast_ref::<DocStreamCreateRequest>() {
             let root_id = doc.get_root().expect("Document missing root");
@@ -144,18 +155,21 @@ impl DocumentChannels {
                 },
                 topic: Topic::new()
             };
-            let mut messages = Vec::new();
             if let Some(message) = doc_stream.init(doc) {
-                messages.push(message);
+                out.push(message);
             }
             self.doc_streams.insert((inc.client_id.clone(), inc.channel_id.clone()), doc_stream);
-            return messages;
+            return true;
         }
         if let Some(doc_stream_destroy) = (*inc.message).downcast_ref::<CloseStreamRequest>() {
-            self.doc_streams.remove(&(inc.client_id.clone(), doc_stream_destroy.channel_id.clone()));
-            return vec![inc.ok(())];
+            let key = (inc.client_id.clone(), doc_stream_destroy.channel_id.clone());
+            if self.doc_streams.contains_key(&key) {
+                self.doc_streams.remove(&key);
+                out.push(inc.ok(()));
+                return true;
+            }
         }
-        Vec::new()
+        return false;
     }
 
     pub fn pon_document_channels(translater: &mut PonTranslater) {

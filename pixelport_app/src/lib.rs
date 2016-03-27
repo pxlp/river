@@ -225,18 +225,18 @@ impl App {
     }
     pub fn handle_request(&mut self, inc: IncomingMessage) -> Vec<OutgoingMessage> {
         let mut msgs = Vec::new();
-        msgs.extend(self.document_channels.handle_request(&inc, &mut self.document));
-        msgs.extend(self.viewport.handle_request(&inc, &mut self.document, &mut self.resources, &mut self.models));
-        msgs.extend(self.resources_channels.handle_request(&inc, &mut self.document, &mut self.resources));
+        if self.document_channels.handle_request(&inc, &mut msgs, &mut self.document) { return msgs; }
+        if self.viewport.handle_request(&inc, &mut msgs, &mut self.document, &mut self.resources, &mut self.models) { return msgs; }
+        if self.resources_channels.handle_request(&inc, &mut msgs, &mut self.document, &mut self.resources) { return msgs; }
         if let Some(frame_stream_create) = (*inc.message).downcast_ref::<FrameStreamCreateRequest>() {
             self.frame_streams.push((inc.client_id.clone(), inc.channel_id.clone()));
-            return Vec::new();
+            return msgs;
         }
         if let Some(close_stream) = (*inc.message).downcast_ref::<CloseStreamRequest>() {
             self.frame_streams.retain(|x| x != &(inc.client_id.clone(), close_stream.channel_id.to_string()));
-            return vec![inc.ok(())]
+            return vec![inc.ok(())];
         }
-        msgs
+        return vec![inc.bad_request(&format!("No handler registered for message {:?}", inc.message))];
     }
     pub fn remove_client(&mut self, client_id: &ClientId) {
         self.document_channels.remove_client(&client_id);

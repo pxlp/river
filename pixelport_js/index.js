@@ -271,14 +271,14 @@ $ export PIXELPORT_APP_PATH=~/pixelport/pixelport_app/target/release/pixelport_a
     return ponParse.parse(str);
   }
   static stringifyPon(pon) {
-    if (pon === null) {
-      return "()";
-    } else if (pon._transform) {
+    if (pon._transform) {
       return pon._transform + ' ' + Pixelport.stringifyPon(pon.arg);
     } else if (Array.isArray(pon)) {
       return '[ ' + pon.map(x => Pixelport.stringifyPon(x)).join(', ') + ' ]';
     } else if (pon instanceof Object) {
-      return '{ ' + Object.keys(pon).map(k => k + ': ' + Pixelport.stringifyPon(pon[k])).join(', ') + ' }';
+      return '{ ' + Object.keys(pon)
+        .filter(k => pon[k] !== null)
+        .map(k => k + ': ' + Pixelport.stringifyPon(pon[k])).join(', ') + ' }';
     } else {
       return pon;
     }
@@ -297,6 +297,9 @@ $ export PIXELPORT_APP_PATH=~/pixelport/pixelport_app/target/release/pixelport_a
     return Pixelport.stringifyPon({ _transform: 'color', arg: v });
   }
 }
+Pixelport.ponConstruct = {
+  call: function(name, arg) { return { _transform: name, arg: arg } }
+};
 
 module.exports = Pixelport;
 

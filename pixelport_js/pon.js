@@ -44,7 +44,7 @@ module.exports = (function() {
         peg$c3 = { type: "literal", value: "@", description: "\"@\"" },
         peg$c4 = ".",
         peg$c5 = { type: "literal", value: ".", description: "\".\"" },
-        peg$c6 = function(selector, property_name) {
+        peg$c6 = function(selector, property_key) {
             return { _type: 'dependency_reference', selector: selector, property_key: property_key };
           },
         peg$c7 = function(reference) { return { _type: 'reference', reference: reference } },

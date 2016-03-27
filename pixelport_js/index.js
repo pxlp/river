@@ -101,7 +101,7 @@ class Pixelport extends EventEmitter {
 
   waitForPropertyChange(selector, property) {
     return new Promise((resolve, reject) => {
-      let stream = this.stream({ _transform: 'doc_stream_create', arg: { selector: selector, property_regex: "'" + property + "'" } });
+      let stream = this.stream(`doc_stream_create { selector: ${selector}, property_regex: '${property}' }`);
       stream.on('message', (changes) => {
         if (changes.arg.updated_properties.length > 0) {
           stream.destroy();

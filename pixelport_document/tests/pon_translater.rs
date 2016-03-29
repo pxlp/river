@@ -26,7 +26,7 @@ fn doc_module(ret_type: &str, matcher: PonDocMatcher) -> Vec<PonDocModule> {
 fn test_empty() {
     let mut bus = Bus::new();
     let mut translater = PonTranslater::new();
-    pon_register_functions!("Test", translater =>
+    pon_register_functions!("test", "Test", translater =>
         "Helps test",
         testy() f32 => { Ok(5.0) }
     );
@@ -39,7 +39,7 @@ fn test_empty() {
 fn test_single() {
     let mut bus = Bus::new();
     let mut translater = PonTranslater::new();
-    pon_register_functions!("Test", translater =>
+    pon_register_functions!("test", "Test", translater =>
         "Helps test",
         testy(some: (f32)) f32 => { Ok(some*5.0) }
     );
@@ -57,7 +57,7 @@ fn test_single() {
 fn test_map() {
     let mut bus = Bus::new();
     let mut translater = PonTranslater::new();
-    pon_register_functions!("Test", translater =>
+    pon_register_functions!("test", "Test", translater =>
         "Helps test",
         testy({
             some: (f32),
@@ -81,7 +81,7 @@ fn test_map() {
 fn test_map_with_default() {
     let mut bus = Bus::new();
     let mut translater = PonTranslater::new();
-    pon_register_functions!("Test", translater =>
+    pon_register_functions!("test", "Test", translater =>
         "Helps test",
         testy({
             some: (f32),
@@ -114,7 +114,7 @@ fn test_map_with_default() {
 fn test_map_with_optional() {
     let mut bus = Bus::new();
     let mut translater = PonTranslater::new();
-    pon_register_functions!("Test", translater =>
+    pon_register_functions!("test", "Test", translater =>
         "Helps test",
         testy({
             some: (f32),
@@ -150,7 +150,7 @@ fn test_map_with_optional() {
 fn test_arr() {
     let mut bus = Bus::new();
     let mut translater = PonTranslater::new();
-    pon_register_functions!("Test", translater =>
+    pon_register_functions!("test", "Test", translater =>
         "Helps test",
         testy(some: [f32]) f32 => { Ok(some[0]*some[1]*2.0) }
     );
@@ -168,7 +168,7 @@ fn test_arr() {
 fn test_map_with_array() {
     let mut bus = Bus::new();
     let mut translater = PonTranslater::new();
-    pon_register_functions!("Test", translater =>
+    pon_register_functions!("test", "Test", translater =>
         "Helps test",
         testy({
             some: [f32],
@@ -192,7 +192,7 @@ fn test_map_with_array() {
 fn test_map_as_whole() {
     let mut bus = Bus::new();
     let mut translater = PonTranslater::new();
-    pon_register_functions!("Test", translater =>
+    pon_register_functions!("test", "Test", translater =>
         "Helps test",
         testy(some: {f32}) f32 => { Ok(some.get("a").unwrap()*some.get("b").unwrap()*2.0) }
     );
@@ -210,7 +210,7 @@ fn test_map_as_whole() {
 fn test_map_missing_field() {
     let mut bus = Bus::new();
     let mut translater = PonTranslater::new();
-    pon_register_functions!("Test", translater =>
+    pon_register_functions!("test", "Test", translater =>
         "Helps test",
         testy({
             some: (f32),
@@ -223,7 +223,7 @@ fn test_map_missing_field() {
 fn test_enum() {
     let mut bus = Bus::new();
     let mut translater = PonTranslater::new();
-    pon_register_functions!("Test", translater =>
+    pon_register_functions!("test", "Test", translater =>
         "Helps test",
         testy(some: ( enum {
             "hej" => "hello".to_string(),

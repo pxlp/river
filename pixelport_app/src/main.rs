@@ -94,8 +94,7 @@ fn main() {
     });
 
     if args.flag_genpondocs {
-        let docs: Vec<String> = app.document.translater.get_docs().iter().map(|doc| doc.generate_md()).collect();
-        println!("{}", docs.join("\n\n"));
+        println!("{}", app.document.translater.generate_json_docs());
         return;
     }
 

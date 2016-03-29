@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use pon::*;
 use bus::*;
 use pon_doc::*;
+use serde_json;
 
 
 #[macro_export]
@@ -85,29 +86,25 @@ macro_rules! pon_expand {
 
 #[macro_export]
 macro_rules! pon_register_functions {
-    ($module:expr, $translater:expr => $($doc:expr, $func_name:ident($($args:tt)*) $ret:ty => $body:block)*) => ({
-        if !$translater.module_docs.contains_key($module) {
-            $translater.module_docs.insert($module.to_string(), "".to_string());
-        }
-        $({
-            fn $func_name(pon: &Pon, translater: &PonTranslater, bus: &$crate::bus::Bus) -> Result<Box<$crate::bus::BusValue>, PonTranslaterErr> {
-                pon_expand!(pon, translater, bus => $($args)*);
-                let val: Result<$ret, PonTranslaterErr> = $body;
-                match val {
-                    Ok(v) => Ok(Box::new(v)),
-                    Err(err) => Err(err)
-                }
+    ($category:expr, $module:expr, $translater:expr => $($doc:expr, $func_name:ident($($args:tt)*) $ret:ty => $body:block)*) => ($({
+        fn $func_name(pon: &Pon, translater: &PonTranslater, bus: &$crate::bus::Bus) -> Result<Box<$crate::bus::BusValue>, PonTranslaterErr> {
+            pon_expand!(pon, translater, bus => $($args)*);
+            let val: Result<$ret, PonTranslaterErr> = $body;
+            match val {
+                Ok(v) => Ok(Box::new(v)),
+                Err(err) => Err(err)
             }
-            let doc = $crate::pon_doc::PonDocFunction {
-                module: $module.to_string(),
-                name: stringify!($func_name).to_string(),
-                target_type_name: stringify!($ret).to_string(),
-                arg: pon_doc_expand!($($args)*),
-                doc: $doc.to_string()
-            };
-            $translater.register_function($func_name, doc);
-        })*
-    });
+        }
+        let doc = $crate::pon_doc::PonDocFunction {
+            category: $category.to_string(),
+            module: $module.to_string(),
+            name: stringify!($func_name).to_string(),
+            target_type_name: stringify!($ret).to_string(),
+            arg: pon_doc_expand!($($args)*),
+            doc: $doc.to_string()
+        };
+        $translater.register_function($func_name, doc);
+    })*);
 }
 
 struct PonFn {
@@ -116,15 +113,13 @@ struct PonFn {
 }
 
 pub struct PonTranslater {
-    functions: HashMap<String, PonFn>,
-    pub module_docs: HashMap<String, String>
+    functions: HashMap<String, PonFn>
 }
 
 impl PonTranslater {
     pub fn new() -> PonTranslater {
         PonTranslater {
-            functions: HashMap::new(),
-            module_docs: HashMap::new()
+            functions: HashMap::new()
         }
     }
     pub fn register_function<F>(&mut self, func: F, doc: PonDocFunction)
@@ -133,9 +128,6 @@ impl PonTranslater {
             func: Box::new(func),
             doc: doc
         });
-    }
-    pub fn register_module_doc(&mut self, name: &str, doc: &str) {
-        self.module_docs.insert(name.to_string(), doc.to_string());
     }
     pub fn translate<T: BusValue>(&self, pon: &Pon, bus: &Bus) -> Result<T, PonTranslaterErr> {
         match try!(self.translate_raw(pon, bus)).downcast::<T>() {
@@ -182,21 +174,11 @@ impl PonTranslater {
             &Pon::Nil => Ok(Box::new(()))
         }
     }
-    pub fn get_docs(&self) -> Vec<PonDocModule> {
-        let mut modules: Vec<PonDocModule> = self.module_docs.iter()
-            .map(|(module, module_doc)| {
-                let mut funs: Vec<PonDocFunction> = self.functions.values()
-                    .filter_map(|v| if &v.doc.module == module { Some(v.doc.clone()) } else { None })
-                    .collect();
-                funs.sort_by_key(|x| x.name.clone());
-                PonDocModule {
-                    name: module.to_string(),
-                    doc: module_doc.to_string(),
-                    functions: funs
-                }
-            }).collect();
-        modules.sort_by_key(|x| x.name.clone());
-        modules
+    pub fn generate_json_docs(&self) -> String {
+        let funcs: Vec<serde_json::value::Value> = self.functions.values()
+            .map(|v| v.doc.generate_json())
+            .collect();
+        serde_json::to_string(&funcs).unwrap()
     }
 }
 

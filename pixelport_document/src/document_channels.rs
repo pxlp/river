@@ -173,7 +173,7 @@ impl DocumentChannels {
     }
 
     pub fn pon_document_channels(translater: &mut PonTranslater) {
-        pon_register_functions!("Document", translater =>
+        pon_register_functions!("channels", "Document", translater =>
 
             r#"Set properties of an entity. Dependencies and functions in `properties` are not
             evaluated at call time.

@@ -9,6 +9,7 @@ extern crate log;
 extern crate mopa;
 extern crate pad;
 extern crate regex;
+extern crate serde_json;
 
 #[macro_use]
 pub mod hashmap_macro;

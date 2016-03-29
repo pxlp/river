@@ -1,4 +1,6 @@
 use pad::{PadStr, Alignment};
+use serde_json;
+use std::collections::BTreeMap;
 
 #[macro_export]
 macro_rules! pon_doc_expand_map {
@@ -134,6 +136,7 @@ impl PonDocMatcher {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PonDocFunction {
+    pub category: String,
     pub module: String,
     pub name: String,
     pub target_type_name: String,
@@ -142,30 +145,16 @@ pub struct PonDocFunction {
 }
 
 impl PonDocFunction {
-    pub fn generate_md(&self) -> String {
-        format!(r#"### {name}
-```pon
-{name} {arg_usage}
-
-// Returns: {returns}
-```
-
-{doc}
-
-"#, name=self.name, arg_usage=self.arg.generate_usage(0), returns=self.target_type_name, doc=self.doc)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct PonDocModule {
-    pub name: String,
-    pub doc: String,
-    pub functions: Vec<PonDocFunction>
-}
-
-impl PonDocModule {
-    pub fn generate_md(&self) -> String {
-        let funs: Vec<String> = self.functions.iter().map(|f| f.generate_md()).collect();
-        format!("## {}\n\n{}\n\n{}", self.name, self.doc, funs.join("\n"))
+    pub fn generate_json(&self) -> serde_json::value::Value {
+        let mut map = BTreeMap::new();
+        map.insert("category".to_string(), serde_json::value::Value::String(self.category.to_string()));
+        map.insert("module".to_string(), serde_json::value::Value::String(self.module.to_string()));
+        map.insert("name".to_string(), serde_json::value::Value::String(self.name.to_string()));
+        map.insert("target_type_name".to_string(), serde_json::value::Value::String(self.target_type_name.to_string()));
+        map.insert("doc".to_string(), serde_json::value::Value::String(self.doc.to_string()));
+        let usage = format!(r#"{name} {arg_usage}"#, name=self.name,
+            arg_usage=self.arg.generate_usage(0));
+        map.insert("usage".to_string(), serde_json::value::Value::String(usage));
+        serde_json::value::Value::Object(map)
     }
 }

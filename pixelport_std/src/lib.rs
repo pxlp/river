@@ -167,7 +167,7 @@ pub fn construct_shadow_camera(decomposed_camera: &DecomposedCamera, cascade_ind
 
 
 pub fn pon_std(translater: &mut PonTranslater) {
-    pon_register_functions!("Standard Library", translater =>
+    pon_register_functions!("document", "Standard Library", translater =>
 
         "Generate random float",
         random_float() f32 => {

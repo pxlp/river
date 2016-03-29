@@ -38,7 +38,7 @@ fn test_property_reference_straight() {
 #[test]
 fn test_property_reference_object() {
     let mut translater = PonTranslater::new();
-    pon_register_functions!("Test", translater =>
+    pon_register_functions!("test", "Test", translater =>
         "Helps test",
         testy({ some: (f32), }) f32 => { Ok(some*2.0) }
     );
@@ -68,7 +68,7 @@ fn test_property_reference_transfer() {
 #[test]
 fn test_property_reference_array() {
     let mut translater = PonTranslater::new();
-    pon_register_functions!("Test", translater =>
+    pon_register_functions!("test", "Test", translater =>
         "Helps test",
         testy(some: [f32]) f32 => { Ok(some[0]*2.0) }
     );
@@ -80,7 +80,7 @@ fn test_property_reference_array() {
 #[test]
 fn test_property_array_reference() {
     let mut translater = PonTranslater::new();
-    pon_register_functions!("Test", translater =>
+    pon_register_functions!("test", "Test", translater =>
         "Helps test",
         testy(some: [f32]) f32 => { Ok(some[0]*2.0) }
     );

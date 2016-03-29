@@ -100,7 +100,7 @@ impl App {
         layout.on_init(&mut translater);
         DocumentChannels::pon_document_channels(&mut translater);
         pixelport_resources::ResourcesChannels::pon_resources_channels(&mut translater);
-        pon_register_functions!("App", translater =>
+        pon_register_functions!("channels", "App", translater =>
 
             "Frame data.",
             frame({
@@ -130,6 +130,7 @@ impl App {
             name: "time".to_string(),
             target_type_name: "f32".to_string(),
             arg: PonDocMatcher::Nil,
+            category: "document".to_string(),
             module: "App".to_string(),
             doc: "Get the current time".to_string()
         });

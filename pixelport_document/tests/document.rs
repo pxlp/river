@@ -55,6 +55,7 @@ fn test_property_reference_transfer() {
         Ok(Box::new(x * 2.0))
     }, PonDocFunction {
         name: "something".to_string(),
+        category: "test".to_string(),
         module: "Test".to_string(),
         doc: "Helps test".to_string(),
         target_type_name: "f32".to_string(),

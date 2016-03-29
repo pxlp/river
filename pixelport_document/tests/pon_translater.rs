@@ -4,22 +4,15 @@ extern crate pixelport_document;
 use pixelport_document::*;
 use std::collections::HashMap;
 
-fn doc_module(ret_type: &str, matcher: PonDocMatcher) -> Vec<PonDocModule> {
-    vec![
-        PonDocModule {
-            name: "Test".to_string(),
-            doc: "".to_string(),
-            functions: vec![
-                PonDocFunction {
-                    name: "testy".to_string(),
-                    module: "Test".to_string(),
-                    doc: "Helps test".to_string(),
-                    target_type_name: ret_type.to_string(),
-                    arg: matcher
-                }
-            ]
-        }
-    ]
+fn doc_function(ret_type: &str, matcher: PonDocMatcher) -> Vec<PonDocFunction> {
+    vec![PonDocFunction {
+        name: "testy".to_string(),
+        category: "test".to_string(),
+        module: "Test".to_string(),
+        doc: "Helps test".to_string(),
+        target_type_name: ret_type.to_string(),
+        arg: matcher
+    }]
 }
 
 #[test]
@@ -32,7 +25,7 @@ fn test_empty() {
     );
     assert_eq!(translater.translate::<f32>(&Pon::from_string("testy ()").unwrap(), &mut bus).unwrap(), 5.0);
 
-    assert_eq!(translater.get_docs(), doc_module("f32", PonDocMatcher::Nil));
+    assert_eq!(translater.get_doc_funcs(), doc_function("f32", PonDocMatcher::Nil));
 }
 
 #[test]
@@ -45,7 +38,7 @@ fn test_single() {
     );
     assert_eq!(translater.translate::<f32>(&Pon::from_string("testy 5.0").unwrap(), &mut bus).unwrap(), 25.0);
 
-    assert_eq!(translater.get_docs(), doc_module("f32", PonDocMatcher::Capture {
+    assert_eq!(translater.get_doc_funcs(), doc_function("f32", PonDocMatcher::Capture {
         var_name: "some".to_string(),
         value: Box::new(PonDocMatcher::Value {
             typ: "f32".to_string()
@@ -65,7 +58,7 @@ fn test_map() {
     );
     assert_eq!(translater.translate::<f32>(&Pon::from_string("testy { some: 3.0 }").unwrap(), &mut bus).unwrap(), 6.0);
 
-    assert_eq!(translater.get_docs(), doc_module("f32", PonDocMatcher::Map(vec![
+    assert_eq!(translater.get_doc_funcs(), doc_function("f32", PonDocMatcher::Map(vec![
             PonDocMapField {
                 var_name: "some".to_string(),
                 optional: false,
@@ -90,7 +83,7 @@ fn test_map_with_default() {
     );
     assert_eq!(translater.translate::<f32>(&Pon::from_string("testy { some: 3.0 }").unwrap(), &mut bus).unwrap(), 12.0);
 
-    assert_eq!(translater.get_docs(), doc_module("f32", PonDocMatcher::Map(vec![
+    assert_eq!(translater.get_doc_funcs(), doc_function("f32", PonDocMatcher::Map(vec![
             PonDocMapField {
                 var_name: "some".to_string(),
                 optional: false,
@@ -126,7 +119,7 @@ fn test_map_with_optional() {
     );
     assert_eq!(translater.translate::<f32>(&Pon::from_string("testy { some: 3.0 }").unwrap(), &mut bus).unwrap(), 6.0);
 
-    assert_eq!(translater.get_docs(), doc_module("f32", PonDocMatcher::Map(vec![
+    assert_eq!(translater.get_doc_funcs(), doc_function("f32", PonDocMatcher::Map(vec![
             PonDocMapField {
                 var_name: "some".to_string(),
                 optional: false,
@@ -156,7 +149,7 @@ fn test_arr() {
     );
     assert_eq!(translater.translate::<f32>(&Pon::from_string("testy [2.0, 3.0]").unwrap(), &mut bus).unwrap(), 12.0);
 
-    assert_eq!(translater.get_docs(), doc_module("f32", PonDocMatcher::Capture {
+    assert_eq!(translater.get_doc_funcs(), doc_function("f32", PonDocMatcher::Capture {
         var_name: "some".to_string(),
         value: Box::new(PonDocMatcher::Array {
             typ: "f32".to_string()
@@ -176,7 +169,7 @@ fn test_map_with_array() {
     );
     assert_eq!(translater.translate::<f32>(&Pon::from_string("testy { some: [3.0] }").unwrap(), &mut bus).unwrap(), 6.0);
 
-    assert_eq!(translater.get_docs(), doc_module("f32", PonDocMatcher::Map(vec![
+    assert_eq!(translater.get_doc_funcs(), doc_function("f32", PonDocMatcher::Map(vec![
             PonDocMapField {
                 var_name: "some".to_string(),
                 optional: false,
@@ -198,7 +191,7 @@ fn test_map_as_whole() {
     );
     assert_eq!(translater.translate::<f32>(&Pon::from_string("testy { a: 3, b: 4 }").unwrap(), &mut bus).unwrap(), 24.0);
 
-    assert_eq!(translater.get_docs(), doc_module("f32", PonDocMatcher::Capture {
+    assert_eq!(translater.get_doc_funcs(), doc_function("f32", PonDocMatcher::Capture {
             var_name: "some".to_string(),
             value: Box::new(PonDocMatcher::Object {
                 typ: "f32".to_string()
@@ -232,7 +225,7 @@ fn test_enum() {
     );
     assert_eq!(translater.translate::<String>(&Pon::from_string("testy 'va'").unwrap(), &mut bus).unwrap(), "what".to_string());
 
-    assert_eq!(translater.get_docs(), doc_module("String", PonDocMatcher::Capture {
+    assert_eq!(translater.get_doc_funcs(), doc_function("String", PonDocMatcher::Capture {
             var_name: "some".to_string(),
             value: Box::new(PonDocMatcher::Enum(vec![
                 PonDocEnumOption { name: "hej".to_string() },

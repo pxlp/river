@@ -174,6 +174,9 @@ impl PonTranslater {
             &Pon::Nil => Ok(Box::new(()))
         }
     }
+    pub fn get_doc_funcs(&self) -> Vec<PonDocFunction> {
+        self.functions.values().map(|v| v.doc.clone()).collect()
+    }
     pub fn generate_json_docs(&self) -> String {
         let funcs: Vec<serde_json::value::Value> = self.functions.values()
             .map(|v| v.doc.generate_json())

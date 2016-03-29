@@ -184,6 +184,11 @@ pub fn pon_std(translater: &mut PonTranslater) {
             Ok(vals.iter().fold(0.0, |acc, &v| acc + v))
         }
 
+        "Subtract two numbers",
+        sub(vals: [f32]) f32 => {
+            Ok(vals[0] - vals[1])
+        }
+
         "Multiply a list of numbers",
         mul(vals: [f32]) f32 => {
             Ok(vals.iter().fold(1.0, |acc, &v| acc * v))

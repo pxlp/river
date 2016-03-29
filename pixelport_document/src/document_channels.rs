@@ -175,12 +175,11 @@ impl DocumentChannels {
     pub fn pon_document_channels(translater: &mut PonTranslater) {
         pon_register_functions!("channels", "Document", translater =>
 
-            r#"Set properties of an entity. Dependencies and functions in `properties` are not
-            evaluated at call time.
+r#"Set properties of an entity. Dependencies and functions in `properties` are not evaluated at
+call time.
 
-            For instance, in `set_properties { entity: root, properties: { x: @root.y } }` the
-            `@root.y` will not be evaluated at request time, but rather set up as a dependency in the
-            document."#,
+For instance, in `set_properties { entity: root, properties: { x: @root.y } }` the `@root.y` will
+not be evaluated at request time, but rather set up as a dependency in the document."#,
             set_properties({
                 entity: (Selector),
                 properties: {Pon},

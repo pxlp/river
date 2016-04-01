@@ -140,15 +140,15 @@ class Pixelport extends EventEmitter {
   }
 
   _handleMessage(message) {
-    message = message.split(' ');
-    let channelId = message[0];
-    let status = message[1];
+    let splitMessage = message.split(' ');
+    let channelId = splitMessage[0];
+    let status = splitMessage[1];
     if (status == 'ok') {
       debug_in_ok("%s", message);
     } else {
       debug_in_err("%s", message);
     }
-    let bodyString = message.slice(2).join(' ');
+    let bodyString = splitMessage.slice(2).join(' ');
     let body = Pixelport.parsePon(bodyString);
     var channel = this.channels[channelId];
     if (channel) {

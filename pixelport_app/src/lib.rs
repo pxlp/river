@@ -3,6 +3,7 @@ extern crate pixelport_document;
 extern crate pixelport_std;
 extern crate pixelport_animation;
 extern crate pixelport_viewport;
+extern crate pixelport_rendering;
 extern crate pixelport_template;
 extern crate pixelport_subdoc;
 extern crate pixelport_tcpinterface;
@@ -39,6 +40,7 @@ pub struct App {
     pub template: pixelport_template::TemplateSubSystem,
     pub animation: pixelport_animation::AnimationSubSystem,
     pub viewport: pixelport_viewport::ViewportSubSystem,
+    pub rendering: pixelport_rendering::RenderingSubSystem,
     pub tcpinterface: pixelport_tcpinterface::TCPInterfaceSubSystem,
     pub picking: pixelport_picking::PickingSubSystem,
     pub culling: pixelport_culling::CullingSubSystem,
@@ -79,7 +81,12 @@ impl App {
         let mut template = pixelport_template::TemplateSubSystem::new(opts.root_path.clone());
         let mut animation = pixelport_animation::AnimationSubSystem::new();
         let mut resources = pixelport_resources::ResourceStorage::new(opts.root_path.clone());
-        let mut viewport = pixelport_viewport::ViewportSubSystem::new(opts.root_path.clone(), &opts.viewport, &mut resources);
+        let mut viewport = pixelport_viewport::ViewportSubSystem::new(&opts.viewport);
+        let rendering_opts = pixelport_rendering::RenderingSubSystemOptions {
+            draw_to_buffer: opts.viewport.headless,
+            viewport: pixelport_std::Rectangle { x: 0.0, y: 0.0, width: viewport.current_window_size.0 as f32, height: viewport.current_window_size.1 as f32 }
+        };
+        let mut rendering = pixelport_rendering::RenderingSubSystem::new(rendering_opts, &mut resources);
         let mut tcpinterface = pixelport_tcpinterface::TCPInterfaceSubSystem::new(opts.port);
         let mut picking = pixelport_picking::PickingSubSystem::new();
         let mut culling = pixelport_culling::CullingSubSystem::new();
@@ -89,17 +96,18 @@ impl App {
         let mut translater = PonTranslater::new();
         pixelport_std::pon_std(&mut translater);
         pixelport_bounding::pon_bounding(&mut translater);
+        pixelport_resources::pon_resources(&mut translater);
         pixelport_models::pon_models(&mut translater);
         pixelport_models::init_logging();
         subdoc.on_init(&mut translater);
         template.on_init(&mut translater);
         animation.on_init(&mut translater);
-        viewport.on_init(&mut translater, &mut template);
+        viewport.on_init(&mut translater);
+        rendering.on_init(&mut translater, &mut template);
         picking.on_init(&mut translater);
         culling.on_init(&mut translater);
         layout.on_init(&mut translater);
         DocumentChannels::pon_document_channels(&mut translater);
-        pixelport_resources::ResourcesChannels::pon_resources_channels(&mut translater);
         pon_register_functions!("channels", "App", translater =>
 
             "Frame data.",
@@ -149,6 +157,7 @@ impl App {
             template: template,
             animation: animation,
             viewport: viewport,
+            rendering: rendering,
             tcpinterface: tcpinterface,
             picking: picking,
             culling: culling,
@@ -191,13 +200,15 @@ impl App {
         self.animation.on_cycle(&mut self.document, &cycle_changes, time, &mut self.models);
         self.layout.on_cycle(&mut self.document, &cycle_changes);
         self.picking.on_cycle(&mut self.document, &cycle_changes);
-        self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources, &mut self.models);
+        self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources);
+        self.rendering.on_cycle(&mut self.document, &cycle_changes, &mut self.resources, &mut self.models);
         self.culling.on_cycle(&mut self.document, &cycle_changes);
 
         self.animation.on_update(&mut self.document, time);
         self.layout.on_update(&mut self.document);
         self.picking.on_update(&mut self.document);
-        self.viewport.on_update(&mut self.document, dtime, &mut self.resources, &mut self.models);
+        self.viewport.on_update(&mut self.document, dtime);
+        self.rendering.on_update(&mut self.document, &mut self.resources, &mut self.models);
         for outbound_message in self.viewport.get_outbound_messages() {
             self.tcpinterface.send_message(outbound_message);
         }
@@ -227,7 +238,8 @@ impl App {
     pub fn handle_request(&mut self, inc: IncomingMessage) -> Vec<OutgoingMessage> {
         let mut msgs = Vec::new();
         if self.document_channels.handle_request(&inc, &mut msgs, &mut self.document) { return msgs; }
-        if self.viewport.handle_request(&inc, &mut msgs, &mut self.document, &mut self.resources, &mut self.models) { return msgs; }
+        if self.viewport.handle_request(&inc, &mut msgs) { return msgs; }
+        if self.rendering.handle_request(&inc, &mut msgs, &mut self.document, &mut self.resources, &mut self.models) { return msgs; }
         if self.resources_channels.handle_request(&inc, &mut msgs, &mut self.document, &mut self.resources) { return msgs; }
         if let Some(frame_stream_create) = (*inc.message).downcast_ref::<FrameStreamCreateRequest>() {
             self.frame_streams.push((inc.client_id.clone(), inc.channel_id.clone()));

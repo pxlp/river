@@ -197,16 +197,16 @@ impl App {
         self.animation.on_cycle(&mut self.document, &cycle_changes, time, &mut self.models);
         self.layout.on_cycle(&mut self.document, &cycle_changes);
         self.picking.on_cycle(&mut self.document, &cycle_changes);
-        self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources);
         self.rendering.on_cycle(&mut self.document, &cycle_changes, &mut self.resources, &mut self.models);
+        self.viewport.on_cycle(&mut self.document, &cycle_changes, &mut self.resources);
         self.culling.on_cycle(&mut self.document, &cycle_changes);
 
         self.animation.on_update(&mut self.document, time);
         self.layout.on_update(&mut self.document);
         self.picking.on_update(&mut self.document);
-        self.viewport.on_update(&mut self.document, dtime);
         self.rendering.viewport = pixelport_std::Rectangle { x: 0.0, y: 0.0, width: self.viewport.current_window_size.0 as f32, height: self.viewport.current_window_size.1 as f32 };
         self.rendering.on_update(&mut self.document, &mut self.resources, &mut self.models);
+        self.viewport.on_update(&mut self.document, dtime);
         for outbound_message in self.viewport.get_outbound_messages() {
             self.tcpinterface.send_message(outbound_message);
         }

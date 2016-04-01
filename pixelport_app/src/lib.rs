@@ -25,9 +25,6 @@ use std::ffi::CStr;
 use libc::c_char;
 use std::path::{PathBuf, Path};
 use time::*;
-use std::rc::Rc;
-use std::cell::RefCell;
-use std::collections::HashMap;
 
 use pixelport_document::*;
 use pixelport_tcpinterface::TCPEvent;
@@ -208,6 +205,7 @@ impl App {
         self.layout.on_update(&mut self.document);
         self.picking.on_update(&mut self.document);
         self.viewport.on_update(&mut self.document, dtime);
+        self.rendering.viewport = pixelport_std::Rectangle { x: 0.0, y: 0.0, width: self.viewport.current_window_size.0 as f32, height: self.viewport.current_window_size.1 as f32 };
         self.rendering.on_update(&mut self.document, &mut self.resources, &mut self.models);
         for outbound_message in self.viewport.get_outbound_messages() {
             self.tcpinterface.send_message(outbound_message);

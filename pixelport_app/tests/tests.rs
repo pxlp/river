@@ -38,7 +38,7 @@ fn setup_app(name: &str) -> App {
     app
 }
 fn compare_screenshot(name: &str, app: &App) {
-	let found = app.viewport.screenshot().unwrap().to_rgba();
+	let found = app.rendering.screenshot().unwrap().to_rgba();
     fs::create_dir_all("tests/found");
     found.save_png(&Path::new(&format!("tests/found/{}.png", name)), 0);
     let expected = TextureSource::from_file(&Path::new(&format!("tests/expected/{}.png", name))).unwrap().to_rgba();
@@ -78,7 +78,7 @@ fn test_examples_cascading_shadow_maps() {
 #[test]
 fn test_visualize_entity_renderer_bounding() {
     let mut app = setup_app("basic");
-    app.viewport.visualize_entity_bounding = Some(3);
+    app.rendering.visualize_entity_bounding = Some(3);
     app.update();
     compare_screenshot("viz_bounding", &app);
 }

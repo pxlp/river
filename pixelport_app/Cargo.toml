@@ -29,6 +29,9 @@ path = "../pixelport_animation"
 [dependencies.pixelport_viewport]
 path = "../pixelport_viewport"
 
+[dependencies.pixelport_rendering]
+path = "../pixelport_rendering"
+
 [dependencies.pixelport_resources]
 path = "../pixelport_resources"
 

@@ -41,7 +41,7 @@ fn compare_screenshot(name: &str, app: &App) {
 	let found = app.rendering.screenshot().unwrap().to_rgba();
     fs::create_dir_all("tests/found");
     found.save_png(&Path::new(&format!("tests/found/{}.png", name)), 0);
-    let expected = TextureSource::from_file(&Path::new(&format!("tests/expected/{}.png", name))).unwrap().to_rgba();
+    let expected = Image::from_file(&Path::new(&format!("tests/expected/{}.png", name))).unwrap().to_rgba();
     assert!(found.diff(&expected) < 0.01);
 }
 fn test_example(name: &str) {

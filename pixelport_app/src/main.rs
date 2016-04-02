@@ -69,7 +69,7 @@ fn main() {
     };
 
     let mut app = App::new(AppOptions {
-        viewport: pixelport_viewport::ViewportSubSystemOptions {
+        viewport: pixelport_viewport::ViewportModuleOptions {
             fullscreen: args.flag_fullscreen,
             multisampling: args.flag_multisampling,
             vsync: args.flag_vsync,

@@ -33,15 +33,15 @@ use pixelport_tcpinterface::TCPEvent;
 pub struct App {
     pub document: Document,
     pub document_channels: DocumentChannels,
-    pub subdoc: pixelport_subdoc::SubdocSubSystem,
-    pub template: pixelport_template::TemplateSubSystem,
-    pub animation: pixelport_animation::AnimationSubSystem,
-    pub viewport: pixelport_viewport::ViewportSubSystem,
-    pub rendering: pixelport_rendering::RenderingSubSystem,
-    pub tcpinterface: pixelport_tcpinterface::TCPInterfaceSubSystem,
-    pub picking: pixelport_picking::PickingSubSystem,
-    pub culling: pixelport_culling::CullingSubSystem,
-    pub layout: pixelport_layout::LayoutSubSystem,
+    pub subdoc: pixelport_subdoc::SubdocModule,
+    pub template: pixelport_template::TemplateModule,
+    pub animation: pixelport_animation::AnimationModule,
+    pub viewport: pixelport_viewport::ViewportModule,
+    pub rendering: pixelport_rendering::RenderingModule,
+    pub tcpinterface: pixelport_tcpinterface::TCPInterfaceModule,
+    pub picking: pixelport_picking::PickingModule,
+    pub culling: pixelport_culling::CullingModule,
+    pub layout: pixelport_layout::LayoutModule,
     pub resources: pixelport_resources::ResourceStorage,
     pub resources_channels: pixelport_resources::ResourcesChannels,
     pub models: pixelport_models::Models,
@@ -64,7 +64,7 @@ pub enum DocumentDescription {
 }
 
 pub struct AppOptions {
-    pub viewport: pixelport_viewport::ViewportSubSystemOptions,
+    pub viewport: pixelport_viewport::ViewportModuleOptions,
     pub port: u16,
     pub document: DocumentDescription,
     pub root_path: PathBuf,
@@ -74,20 +74,20 @@ pub struct AppOptions {
 
 impl App {
     pub fn new(mut opts: AppOptions) -> App {
-        let mut subdoc = pixelport_subdoc::SubdocSubSystem::new();
-        let mut template = pixelport_template::TemplateSubSystem::new(opts.root_path.clone());
-        let mut animation = pixelport_animation::AnimationSubSystem::new();
+        let mut subdoc = pixelport_subdoc::SubdocModule::new();
+        let mut template = pixelport_template::TemplateModule::new(opts.root_path.clone());
+        let mut animation = pixelport_animation::AnimationModule::new();
         let mut resources = pixelport_resources::ResourceStorage::new(opts.root_path.clone());
-        let mut viewport = pixelport_viewport::ViewportSubSystem::new(&opts.viewport);
-        let rendering_opts = pixelport_rendering::RenderingSubSystemOptions {
+        let mut viewport = pixelport_viewport::ViewportModule::new(&opts.viewport);
+        let rendering_opts = pixelport_rendering::RenderingModuleOptions {
             draw_to_buffer: opts.viewport.headless,
             viewport: pixelport_std::Rectangle { x: 0.0, y: 0.0, width: viewport.current_window_size.0 as f32, height: viewport.current_window_size.1 as f32 }
         };
-        let mut rendering = pixelport_rendering::RenderingSubSystem::new(rendering_opts, &mut resources);
-        let mut tcpinterface = pixelport_tcpinterface::TCPInterfaceSubSystem::new(opts.port);
-        let mut picking = pixelport_picking::PickingSubSystem::new();
-        let mut culling = pixelport_culling::CullingSubSystem::new();
-        let mut layout = pixelport_layout::LayoutSubSystem::new();
+        let mut rendering = pixelport_rendering::RenderingModule::new(rendering_opts, &mut resources);
+        let mut tcpinterface = pixelport_tcpinterface::TCPInterfaceModule::new(opts.port);
+        let mut picking = pixelport_picking::PickingModule::new();
+        let mut culling = pixelport_culling::CullingModule::new();
+        let mut layout = pixelport_layout::LayoutModule::new();
         let mut models = pixelport_models::Models::new(opts.root_path.clone());
 
         let mut translater = PonTranslater::new();
@@ -280,7 +280,7 @@ pub struct CApp {
 pub extern "C" fn pixelport_new() -> *mut CApp {
     let app = Box::new(CApp {
         app: App::new(AppOptions {
-            viewport: pixelport_viewport::ViewportSubSystemOptions {
+            viewport: pixelport_viewport::ViewportModuleOptions {
                 fullscreen: false,
                 multisampling: 0,
                 vsync: false,

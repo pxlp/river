@@ -15,7 +15,7 @@ fn headless_document_opts(filename: &str) -> AppOptions {
     let path = Path::new(&filename);
     let root_path = path.parent().unwrap().to_path_buf();
     AppOptions {
-        viewport: pixelport_viewport::ViewportSubSystemOptions {
+        viewport: pixelport_viewport::ViewportModuleOptions {
             fullscreen: false,
             multisampling: 0,
             vsync: false,

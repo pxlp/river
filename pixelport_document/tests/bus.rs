@@ -11,7 +11,7 @@ fn test_entry_of_wrong_type() {
         Ok(Box::new(5))
     }));
     let v = bus.get_typed::<String>(&PropRef::new(5, "x"), &PonTranslater::new());
-    assert_eq!(v, Err(BusError::EntryOfWrongType { expected: "collections::string::String".to_string(), found: "i32".to_string(), value: "5".to_string() }));
+    assert_eq!(v, Err(BusError::EntryOfWrongType { expected: "std::string::String".to_string(), found: "i32".to_string(), value: "5".to_string() }));
 }
 
 #[test]

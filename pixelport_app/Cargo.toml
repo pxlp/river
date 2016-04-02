@@ -24,43 +24,43 @@ path = "../pixelport_document"
 path = "../pixelport_std"
 
 [dependencies.pixelport_animation]
-path = "../pixelport_animation"
+path = "../../pixelport_animation"
 
 [dependencies.pixelport_viewport]
-path = "../pixelport_viewport"
+path = "../../pixelport_viewport"
 
 [dependencies.pixelport_rendering]
-path = "../pixelport_rendering"
+path = "../../pixelport_rendering"
 
 [dependencies.pixelport_resources]
-path = "../pixelport_resources"
+path = "../../pixelport_resources"
 
 [dependencies.pixelport_template]
-path = "../pixelport_template"
+path = "../../pixelport_template"
 
 [dependencies.pixelport_subdoc]
-path = "../pixelport_subdoc"
+path = "../../pixelport_subdoc"
 
 [dependencies.pixelport_tcpinterface]
-path = "../pixelport_tcpinterface"
+path = "../../pixelport_tcpinterface"
 
 [dependencies.pixelport_picking]
-path = "../pixelport_picking"
+path = "../../pixelport_picking"
 
 [dependencies.pixelport_layout]
-path = "../pixelport_layout"
+path = "../../pixelport_layout"
 
 [dependencies.pixelport_bounding]
-path = "../pixelport_bounding"
+path = "../../pixelport_bounding"
 
 [dependencies.pixelport_culling]
-path = "../pixelport_culling"
+path = "../../pixelport_culling"
 
 [dependencies.pixelport_models]
-path = "../pixelport_models"
+path = "../../pixelport_models"
 
 [dependencies.mesh]
-path = "../mesh"
+path = "../../mesh"
 
 [dev-dependencies]
 image = "*"
